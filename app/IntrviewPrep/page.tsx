@@ -331,6 +331,10 @@ function EnhancedQuestionGenerator() {
     return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
   }
 
+  const handleDurationChange = (newDuration: number) => {
+    setInterviewDuration(newDuration * 60) // Convert minutes to seconds
+  }
+
   return (
     <div className="bg-white min-h-screen text-black font-sans">
       <Navbar />
@@ -567,32 +571,48 @@ function EnhancedQuestionGenerator() {
                         ))}
                       </Accordion>
                     </ScrollArea>
-                    <div className="mt-4 space-x-2">
-                      <Button onClick={startMockInterview}>
-                        Start Mock Interview
-                      </Button>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="outline">
-                            <Save className="mr-2 h-4 w-4" />
-                            Save Question Set
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Save Question Set</DialogTitle>
-                            <DialogDescription>Enter a name for this question set to save it for future use.</DialogDescription>
-                          </DialogHeader>
-                          <Input
-                            value={currentSetName}
-                            onChange={(e) => setCurrentSetName(e.target.value)}
-                            placeholder="Question Set Name"
+                    <div className="mt-4 space-y-4">
+                      <div>
+                        <Label htmlFor="interview-duration">Interview Duration (minutes)</Label>
+                        <div className="flex items-center space-x-2">
+                          <Slider
+                            id="interview-duration"
+                            min={5}
+                            max={120}
+                            step={5}
+                            value={[interviewDuration / 60]}
+                            onValueChange={(value) => handleDurationChange(value[0])}
                           />
-                          <Button onClick={saveQuestionSet} className="w-full">
-                            Save
-                          </Button>
-                        </DialogContent>
-                      </Dialog>
+                          <span className="w-12 text-center">{interviewDuration / 60}</span>
+                        </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button onClick={startMockInterview}>
+                          Start Mock Interview
+                        </Button>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline">
+                              <Save className="mr-2 h-4 w-4" />
+                              Save Question Set
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Save Question Set</DialogTitle>
+                              <DialogDescription>Enter a name for this question set to save it for future use.</DialogDescription>
+                            </DialogHeader>
+                            <Input
+                              value={currentSetName}
+                              onChange={(e) => setCurrentSetName(e.target.value)}
+                              placeholder="Question Set Name"
+                            />
+                            <Button onClick={saveQuestionSet} className="w-full">
+                              Save
+                            </Button>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
                     </div>
                   </>
                 )}
