@@ -1,11 +1,11 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import Navbar from '@/components/Navbar'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
-import { Loader2, Clipboard, CheckCircle2, RefreshCw, Sparkles, Save, Download, Plus, X, Send, Play, Pause, StopCircle } from 'lucide-react'
+import { Loader2, Clipboard, CheckCircle2, RefreshCw, Sparkles, Save, Download, Plus, X, Send, Play, Pause, StopCircle, Mic, MicOff } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -143,6 +143,42 @@ async function evaluateAnswerWithGemini(question: string, answer: string) {
   }
 }
 
+async function generateInterviewTips(resume: string, jobDescription: string) {
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
+
+    const prompt = `
+      As an expert career coach, provide tailored interview preparation tips based on the following:
+
+      RESUME:
+      ${resume}
+
+      JOB DESCRIPTION:
+      ${jobDescription}
+
+      Please generate 5 specific and actionable tips that will help the candidate prepare for this interview.
+      Consider the candidate's background from the resume and the requirements from the job description.
+      Format the tips as a JSON array of strings.
+
+      Return only the JSON array, without any additional text.
+    `
+
+    const result = await model.generateContent(prompt)
+    const response = await result.response
+    const text = response.text()
+
+    console.log("Raw API Response:", text)
+
+    const cleanedText = text.replace(/```json\n|\n```/g, '').trim()
+    const tips = JSON.parse(cleanedText)
+
+    return tips
+  } catch (error) {
+    console.error('Error generating interview tips:', error)
+    throw new Error('Failed to generate interview tips')
+  }
+}
+
 function EnhancedQuestionGenerator() {
   const [resume, setResume] = useState('')
   const [jobDescription, setJobDescription] = useState('')
@@ -158,6 +194,8 @@ function EnhancedQuestionGenerator() {
   const [isAddingQuestionType, setIsAddingQuestionType] = useState(false)
   const [currentAnswer, setCurrentAnswer] = useState('')
   const [isEvaluating, setIsEvaluating] = useState(false)
+  const [interviewTips, setInterviewTips] = useState<string[]>([])
+  const [isGeneratingTips, setIsGeneratingTips] = useState(false)
 
   // Mock Interview States
   const [isMockInterviewMode, setIsMockInterviewMode] = useState(false)
@@ -166,6 +204,12 @@ function EnhancedQuestionGenerator() {
   const [isInterviewPaused, setIsInterviewPaused] = useState(false)
   const [interviewDuration, setInterviewDuration] = useState(1800) // 30 minutes by default
   const [totalScore, setTotalScore] = useState(0)
+
+  // Audio Recording States
+  const [isRecording, setIsRecording] = useState(false)
+  const [audioURL, setAudioURL] = useState<string | null>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
 
   useEffect(() => {
     const savedSetsFromStorage = localStorage.getItem('savedQuestionSets')
@@ -216,6 +260,35 @@ function EnhancedQuestionGenerator() {
       })
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const generateTips = async () => {
+    if (!resume.trim() || !jobDescription.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please provide both resume and job description to generate tips.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsGeneratingTips(true)
+    try {
+      const tips = await generateInterviewTips(resume, jobDescription)
+      setInterviewTips(tips)
+      toast({
+        title: "Tips Generated",
+        description: "Your interview preparation tips are ready.",
+      })
+    } catch (error) {
+      toast({
+        title: "Error Generating Tips",
+        description: "There was an error generating interview tips. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsGeneratingTips(false)
     }
   }
 
@@ -299,6 +372,7 @@ function EnhancedQuestionGenerator() {
     setInterviewTimer(0)
     setIsInterviewPaused(false)
     setTotalScore(0)
+    setAudioURL(null)
   }
 
   const pauseResumeInterview = () => {
@@ -315,6 +389,7 @@ function EnhancedQuestionGenerator() {
       title: "Mock Interview Ended",
       description: `You've completed the mock interview. Your average score is ${averageScore.toFixed(2)}/5. Review your answers and feedback.`,
     })
+    stopRecording()
   }
 
   const nextQuestion = useCallback(() => {
@@ -335,14 +410,52 @@ function EnhancedQuestionGenerator() {
     setInterviewDuration(newDuration * 60) // Convert minutes to seconds
   }
 
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      mediaRecorderRef.current = new MediaRecorder(stream)
+      audioChunksRef.current = []
+
+      mediaRecorderRef.current.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data)
+        }
+      }
+
+      mediaRecorderRef.current.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' })
+        const audioUrl = URL.createObjectURL(audioBlob)
+        setAudioURL(audioUrl)
+      }
+
+      mediaRecorderRef.current.start()
+      setIsRecording(true)
+    } catch (error) {
+      console.error('Error starting recording:', error)
+      toast({
+        title: "Recording Error",
+        description: "Unable to start recording. Please check your microphone permissions.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop()
+      setIsRecording(false)
+    }
+  }
+
   return (
     <div className="bg-white min-h-screen text-black font-sans">
       <Navbar />
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-4xl font-bold mb-8 text-center">Enhanced AI Interview Question Generator</h1>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3 bg-gray-100 rounded-lg p-1">
+          <TabsList className="grid w-full grid-cols-4 bg-gray-100 rounded-lg p-1">
             <TabsTrigger value="input" className="data-[state=active]:bg-white">Input</TabsTrigger>
+            <TabsTrigger value="tips" className="data-[state=active]:bg-white">Tips</TabsTrigger>
             <TabsTrigger value="questions" className="data-[state=active]:bg-white" disabled={questions.length === 0}>Questions</TabsTrigger>
             <TabsTrigger value="saved" className="data-[state=active]:bg-white">Saved Sets</TabsTrigger>
           </TabsList>
@@ -472,6 +585,44 @@ function EnhancedQuestionGenerator() {
               </CardFooter>
             </Card>
           </TabsContent>
+          <TabsContent value="tips">
+            <Card>
+              <CardHeader>
+                <CardTitle>Interview Preparation Tips</CardTitle>
+                <CardDescription>Get tailored tips based on your resume and the job description</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {interviewTips.length > 0 ? (
+                  <ul className="list-disc list-inside space-y-2">
+                    {interviewTips.map((tip, index) => (
+                      <li key={index}>{tip}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>No tips generated yet. Click the button below to generate tips.</p>
+                )}
+              </CardContent>
+              <CardFooter>
+                <Button 
+                  onClick={generateTips} 
+                  className="w-full"
+                  disabled={isGeneratingTips}
+                >
+                  {isGeneratingTips ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Generating Tips...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      Generate Interview Tips
+                    </>
+                  )}
+                </Button>
+              </CardFooter>
+            </Card>
+          </TabsContent>
           <TabsContent value="questions">
             <Card>
               <CardHeader>
@@ -503,7 +654,7 @@ function EnhancedQuestionGenerator() {
                       placeholder="Type your answer here..."
                       className="h-32"
                     />
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <Button onClick={() => evaluateAnswer(currentQuestionIndex)} disabled={isEvaluating || !questions[currentQuestionIndex].userAnswer}>
                         {isEvaluating ? (
                           <>
@@ -525,7 +676,17 @@ function EnhancedQuestionGenerator() {
                           {currentQuestionIndex < questions.length - 1 ? 'Next Question' : 'End Interview'}
                         </Button>
                       </div>
+                      <Button onClick={isRecording ? stopRecording : startRecording} variant="outline">
+                        {isRecording ? <MicOff className="h-4 w-4 mr-2" /> : <Mic className="h-4 w-4 mr-2" />}
+                        {isRecording ? 'Stop Recording' : 'Start Recording'}
+                      </Button>
                     </div>
+                    {audioURL && (
+                      <div className="mt-4">
+                        <h4 className="font-semibold mb-2">Interview Recording</h4>
+                        <audio src={audioURL} controls className="w-full" />
+                      </div>
+                    )}
                     {questions[currentQuestionIndex].feedback && (
                       <Card className="mt-4">
                         <CardHeader>
@@ -631,8 +792,11 @@ function EnhancedQuestionGenerator() {
                     <Card key={index} className="mb-4">
                       <CardHeader>
                         <CardTitle>{set.name}</CardTitle>
-                        <CardDescription>Difficulty: {set.difficulty} | {set.questions.length} questions</CardDescription>
+                        <CardDescription>Difficulty: {set.difficulty}</CardDescription>
                       </CardHeader>
+                      <CardContent>
+                        <p>{set.questions.length} questions</p>
+                      </CardContent>
                       <CardFooter>
                         <Button onClick={() => loadQuestionSet(set)}>
                           Load Set
@@ -670,76 +834,74 @@ function QuestionCard({ question, index, questionTypes, onAnswerChange, onEvalua
     <AccordionItem value={`item-${index}`}>
       <AccordionTrigger>
         <div className="flex items-center space-x-2">
-          <Badge variant="outline">
+          <Badge variant="secondary">
             {questionType.name}
           </Badge>
           <span className="text-sm font-medium">Question {index + 1}</span>
         </div>
       </AccordionTrigger>
-      <AccordionContent>
-        <div className="space-y-2">
-          <p className="text-lg font-medium">{question.question}</p>
-          <p className="text-sm text-gray-500">
-            <span className="font-semibold">Rationale:</span> {question.rationale}
-          </p>
-          <Textarea
-            value={question.userAnswer || ''}
-            onChange={(e) => onAnswerChange(e.target.value)}
-            placeholder="Type your answer here..."
-            className="h-32"
-          />
-          <div className="flex justify-between">
-            <Button variant="outline" size="sm" onClick={copyToClipboard}>
-              {isCopied ? (
-                <>
-                  <CheckCircle2 className="mr-2 h-4 w-4" />
-                  Copied
-                </>
-              ) : (
-                <>
-                  <Clipboard className="mr-2 h-4 w-4" />
-                  Copy Question
-                </>
-              )}
-            </Button>
-            <Button onClick={onEvaluate} disabled={isEvaluating || !question.userAnswer}>
-              {isEvaluating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Evaluating...
-                </>
-              ) : (
-                <>
-                  <Send className="mr-2 h-4 w-4" />
-                  Evaluate Answer
-                </>
-              )}
-            </Button>
-          </div>
-          {question.feedback && (
-            <Card className="mt-4">
-              <CardHeader>
-                <CardTitle>Feedback</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="mb-2">Overall Rating: {question.feedback.overallRating}/5</p>
-                <h5 className="font-semibold mb-1">Strengths:</h5>
-                <ul className="list-disc list-inside mb-2">
-                  {question.feedback.strengths.map((strength, index) => (
-                    <li key={index}>{strength}</li>
-                  ))}
-                </ul>
-                <h5 className="font-semibold mb-1">Areas for Improvement:</h5>
-                <ul className="list-disc list-inside mb-2">
-                  {question.feedback.areasForImprovement.map((area, index) => (
-                    <li key={index}>{area}</li>
-                  ))}
-                </ul>
-                <p className="text-sm">{question.feedback.detailedFeedback}</p>
-              </CardContent>
-            </Card>
-          )}
+      <AccordionContent className="space-y-2">
+        <p className="text-lg font-medium">{question.question}</p>
+        <p className="text-sm text-gray-500">
+          <span className="font-semibold">Rationale:</span> {question.rationale}
+        </p>
+        <Textarea
+          value={question.userAnswer || ''}
+          onChange={(e) => onAnswerChange(e.target.value)}
+          placeholder="Type your answer here..."
+          className="h-32"
+        />
+        <div className="flex justify-between">
+          <Button variant="outline" size="sm" onClick={copyToClipboard}>
+            {isCopied ? (
+              <>
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                Copied
+              </>
+            ) : (
+              <>
+                <Clipboard className="mr-2 h-4 w-4" />
+                Copy Question
+              </>
+            )}
+          </Button>
+          <Button onClick={onEvaluate} disabled={isEvaluating || !question.userAnswer}>
+            {isEvaluating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Evaluating...
+              </>
+            ) : (
+              <>
+                <Send className="mr-2 h-4 w-4" />
+                Evaluate Answer
+              </>
+            )}
+          </Button>
         </div>
+        {question.feedback && (
+          <Card className="mt-4">
+            <CardHeader>
+              <CardTitle>Feedback</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="mb-2">Overall Rating: {question.feedback.overallRating}/5</p>
+              <h5 className="font-semibold mb-1">Strengths:</h5>
+              <ul className="list-disc list-inside mb-2">
+                {question.feedback.strengths.map((strength, index) => (
+                  <li key={index}>{strength}</li>
+                ))}
+              </ul>
+              <h5 className="font-semibold mb-1">Areas for Improvement:</h5>
+              <ul className="list-disc list-inside mb-2">
+                {question.feedback.areasForImprovement.map((area, index) => (
+                  <li key={index}>{area}</li>
+                ))}
+              </ul>
+              <p className="text-sm">{question.feedback.detailedFeedback}</p>
+            </CardContent>
+          </Card>
+        )}
       </AccordionContent>
     </AccordionItem>
   )
