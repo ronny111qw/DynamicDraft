@@ -5,7 +5,7 @@ import Navbar from '@/components/Navbar'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
-import { Loader2, Clipboard, CheckCircle2, RefreshCw, Sparkles, Save, Download, Plus, X, Send, Play, Pause, StopCircle, Mic, MicOff } from 'lucide-react'
+import { Loader2, Clipboard, CheckCircle2, RefreshCw, Sparkles, Save, Download, Plus, X, Send, Play, Pause, StopCircle, Mic, MicOff, BarChart } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
 import { GoogleGenerativeAI } from "@google/generative-ai"
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY_INTRV_QUES!)
 
@@ -39,13 +40,29 @@ type Question = {
   }
 }
 
+type InterviewResult = {
+  date: string
+  averageScore: number
+  questionTypes: { [key: string]: number }
+}
+
 const defaultQuestionTypes: QuestionType[] = [
   { id: 'behavioral', name: 'Behavioral' },
   { id: 'technical', name: 'Technical' },
   { id: 'situational', name: 'Situational' },
 ]
 
-async function generateQuestionsWithGemini(resume: string, jobDescription: string, difficulty: string, questionTypes: QuestionType[]) {
+const industrySpecificSets = [
+  { id: 'software-engineering', name: 'Software Engineering' },
+  { id: 'data-science', name: 'Data Science' },
+  { id: 'product-management', name: 'Product Management' },
+  { id: 'marketing', name: 'Marketing' },
+  { id: 'sales', name: 'Sales' },
+  { id: 'finance', name: 'Finance' },
+  { id: 'healthcare', name: 'Healthcare' },
+]
+
+async function generateQuestionsWithGemini(resume: string, jobDescription: string, difficulty: string, questionTypes: QuestionType[], industry?: string) {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
 
@@ -64,10 +81,12 @@ async function generateQuestionsWithGemini(resume: string, jobDescription: strin
       QUESTION TYPES:
       ${questionTypes.map(type => type.name).join(', ')}
       
+      ${industry ? `INDUSTRY: ${industry}` : ''}
+      
       Please generate ${questionTypes.length * 2} questions:
       ${questionTypes.map(type => `- 2 ${type.name.toLowerCase()} questions`).join('\n')}
       
-      Ensure the questions are appropriate for the ${difficulty} difficulty level.
+      Ensure the questions are appropriate for the ${difficulty} difficulty level${industry ? ` and specific to the ${industry} industry` : ''}.
       
       Format each question as a JSON object with properties:
       - type (one of the provided question types)
@@ -196,6 +215,8 @@ function EnhancedQuestionGenerator() {
   const [isEvaluating, setIsEvaluating] = useState(false)
   const [interviewTips, setInterviewTips] = useState<string[]>([])
   const [isGeneratingTips, setIsGeneratingTips] = useState(false)
+  const [selectedIndustry, setSelectedIndustry] = useState('')
+  const [interviewResults, setInterviewResults] = useState<InterviewResult[]>([])
 
   // Mock Interview States
   const [isMockInterviewMode, setIsMockInterviewMode] = useState(false)
@@ -221,6 +242,11 @@ function EnhancedQuestionGenerator() {
     if (savedQuestionTypes) {
       setQuestionTypes([...defaultQuestionTypes, ...JSON.parse(savedQuestionTypes)])
     }
+
+    const savedInterviewResults = localStorage.getItem('interviewResults')
+    if (savedInterviewResults) {
+      setInterviewResults(JSON.parse(savedInterviewResults))
+    }
   }, [])
 
   useEffect(() => {
@@ -245,7 +271,7 @@ function EnhancedQuestionGenerator() {
 
     setIsLoading(true)
     try {
-      const generatedQuestions = await generateQuestionsWithGemini(resume, jobDescription, difficulty, questionTypes)
+      const generatedQuestions = await generateQuestionsWithGemini(resume, jobDescription, difficulty, questionTypes, selectedIndustry)
       setQuestions(generatedQuestions)
       setActiveTab('questions')
       toast({
@@ -308,6 +334,7 @@ function EnhancedQuestionGenerator() {
       resume: resume,
       jobDescription: jobDescription,
       difficulty: difficulty,
+      industry: selectedIndustry,
     }
 
     const updatedSets = [...savedSets, newSet]
@@ -327,6 +354,7 @@ function EnhancedQuestionGenerator() {
     setResume(set.resume)
     setJobDescription(set.jobDescription)
     setDifficulty(set.difficulty)
+    setSelectedIndustry(set.industry || '')
     setActiveTab('questions')
 
     toast({
@@ -385,6 +413,23 @@ function EnhancedQuestionGenerator() {
     setInterviewTimer(0)
     setIsInterviewPaused(false)
     const averageScore = totalScore / questions.length
+
+    // Save interview result
+    const newResult: InterviewResult = {
+      date: new Date().toISOString(),
+      averageScore: averageScore,
+      questionTypes: questions.reduce((acc, q) => {
+        if (q.feedback) {
+          acc[q.type] = (acc[q.type] || 0) + q.feedback.overallRating
+        }
+        return acc
+      }, {} as { [key: string]: number })
+    }
+
+    const updatedResults = [...interviewResults, newResult]
+    setInterviewResults(updatedResults)
+    localStorage.setItem('interviewResults', JSON.stringify(updatedResults))
+
     toast({
       title: "Mock Interview Ended",
       description: `You've completed the mock interview. Your average score is ${averageScore.toFixed(2)}/5. Review your answers and feedback.`,
@@ -453,11 +498,12 @@ function EnhancedQuestionGenerator() {
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-4xl font-bold mb-8 text-center">Enhanced AI Interview Question Generator</h1>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4 bg-gray-100 rounded-lg p-1">
+          <TabsList className="grid w-full grid-cols-5 bg-gray-100 rounded-lg p-1">
             <TabsTrigger value="input" className="data-[state=active]:bg-white">Input</TabsTrigger>
             <TabsTrigger value="tips" className="data-[state=active]:bg-white">Tips</TabsTrigger>
             <TabsTrigger value="questions" className="data-[state=active]:bg-white" disabled={questions.length === 0}>Questions</TabsTrigger>
             <TabsTrigger value="saved" className="data-[state=active]:bg-white">Saved Sets</TabsTrigger>
+            <TabsTrigger value="progress" className="data-[state=active]:bg-white">Progress</TabsTrigger>
           </TabsList>
           <TabsContent value="input">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -505,6 +551,20 @@ function EnhancedQuestionGenerator() {
                       <SelectItem value="beginner">Beginner</SelectItem>
                       <SelectItem value="intermediate">Intermediate</SelectItem>
                       <SelectItem value="advanced">Advanced</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="industry">Industry</Label>
+                  <Select value={selectedIndustry} onValueChange={setSelectedIndustry}>
+                    <SelectTrigger id="industry">
+                      <SelectValue placeholder="Select industry" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="general">General (No specific industry)</SelectItem>
+                      {industrySpecificSets.map((industry) => (
+                        <SelectItem key={industry.id} value={industry.id}>{industry.name}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -796,6 +856,7 @@ function EnhancedQuestionGenerator() {
                       </CardHeader>
                       <CardContent>
                         <p>{set.questions.length} questions</p>
+                        {set.industry && <p>Industry: {industrySpecificSets.find(i => i.id === set.industry)?.name || set.industry}</p>}
                       </CardContent>
                       <CardFooter>
                         <Button onClick={() => loadQuestionSet(set)}>
@@ -805,6 +866,52 @@ function EnhancedQuestionGenerator() {
                     </Card>
                   ))}
                 </ScrollArea>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="progress">
+            <Card>
+              <CardHeader>
+                <CardTitle>Progress Tracking</CardTitle>
+                <CardDescription>Track your performance over multiple mock interviews.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {interviewResults.length > 0 ? (
+                  <div className="space-y-6">
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={interviewResults}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="date" />
+                          <YAxis domain={[0, 5]} />
+                          <Tooltip />
+                          <Legend />
+                          <Line type="monotone" dataKey="averageScore" stroke="#8884d8" name="Average Score" />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">Performance by Question Type</h3>
+                      {Object.entries(
+                        interviewResults.reduce((acc, result) => {
+                          Object.entries(result.questionTypes).forEach(([type, score]) => {
+                            if (!acc[type]) acc[type] = []
+                            acc[type].push(score)
+                          })
+                          return acc
+                        }, {} as { [key: string]: number[] })
+                      ).map(([type, scores]) => (
+                        <div key={type} className="mb-4">
+                          <h4 className="font-medium">{type}</h4>
+                          <Progress value={(scores.reduce((a, b) => a + b, 0) / scores.length / 5) * 100} className="h-2" />
+                          <p className="text-sm text-gray-600">Average: {(scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2)}/5</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p>No interview data available yet. Complete a mock interview to see your progress.</p>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -901,7 +1008,7 @@ function QuestionCard({ question, index, questionTypes, onAnswerChange, onEvalua
               <p className="text-sm">{question.feedback.detailedFeedback}</p>
             </CardContent>
           </Card>
-        )}
+        )}  
       </AccordionContent>
     </AccordionItem>
   )
