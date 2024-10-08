@@ -5,7 +5,6 @@ import Link from 'next/link'
 import JobMatcher from "@/components/JobMatcher"
 import Image from 'next/image'
 import { Save, Sparkles } from "lucide-react"
-import ResumePDF from '@/components/ResumePDF';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import FontSelector, { fonts } from '@/app/fontSelector' 
@@ -29,7 +28,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { FileText, Download, Trash2, PlusCircle, GripVertical, Moon, Sun, Loader2, Check } from "lucide-react"
 import dynamic from 'next/dynamic';
-import PDFDownloadButton from '@/components/PDFDownloadButton';
 import { toast } from "@/components/ui/use-toast"
 import { update } from "lodash"
 
@@ -904,7 +902,7 @@ Please ensure each section is clearly separated and labeled.`;
 
   const renderPreview = () => (
     <div id="resume-preview" className={`bg-muted p-6 rounded-lg shadow-inner ${fonts[selectedFont].className}`}>
-      <h2 className="text-2xl font-bold mb-4">Preview</h2>
+      {/* <h2 className="text-2xl font-bold mb-4">Preview</h2> */}
       <div id = "resume-content-for-pdf" className="bg-background p-6 rounded-lg shadow-lg preview-content">
       <DragDropContext onDragEnd={onDragEnd}>
         <Droppable droppableId="resume-preview">
