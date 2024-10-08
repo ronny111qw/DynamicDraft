@@ -388,47 +388,56 @@ const ResumeBuilder = () => {
     setIsAnalyzing(true);
     try {
       const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY!);
-      const model = genAI.getGenerativeModel({ model: "gemini-pro"});
-
+      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+  
       const prompt = `Analyze the following resume and provide structured suggestions for improvement:
-
-${JSON.stringify(resumeData, null, 2)}
-
-Please provide feedback in the following format:
-
-1. Overall Structure and Formatting:
-[Your feedback here]
-
-2. Content Relevance and Impact:
-[Your feedback here]
-
-3. Section-specific Improvements:
-a) Personal Information:
-[Your feedback here]
-b) Education:
-[Your feedback here]
-c) Experience:
-[Your feedback here]
-d) Projects:
-[Your feedback here] 
-e) Skills:
-[Your feedback here]
-
-4. Missing Information:
-[Your feedback here]
-
-5. General Tips:
-[Your feedback here]
-
-Please ensure each section is clearly separated and labeled.`;
-
+  
+  ${JSON.stringify(resumeData, null, 2)}
+  
+  Please provide feedback in the following format:
+  
+  1. Overall Structure and Formatting:
+  [Your feedback here]
+  
+  2. Content Relevance and Impact:
+  [Your feedback here]
+  
+  3. Section-specific Improvements:
+  a) Personal Information:
+  [Your feedback here]
+  b) Education:
+  [Your feedback here]
+  c) Experience:
+  [Your feedback here]
+  d) Projects:
+  [Your feedback here] 
+  e) Skills:
+  [Your feedback here]
+  
+  4. Missing Information:
+  [Your feedback here]
+  
+  5. General Tips:
+  [Your feedback here]
+  
+  Please ensure each section is clearly separated and labeled.`;
+  
       const result = await model.generateContent(prompt);
       const response = await result.response;
-      const text = response.text();
-
+      const text = await response.text();
+  
+      // Clean the response text by removing special characters
+      const cleanedText = text.replace(/[^\w\s.,:;?!\n]/g, ''); // Keep letters, numbers, whitespace, and some punctuation
+  
+      // Format the cleaned text for better readability
+      const formattedText = cleanedText
+        .replace(/([1-5]\. )/g, '\n\n$1') // Add line breaks before numbered sections
+        .replace(/([a-e]\) )/g, '\n\n$1') // Add line breaks before lettered sections
+        .trim(); // Trim whitespace from the start and end
+  
       // Parse the structured response
-      const parsedSuggestions = parseAISuggestions(text);
-
+      const parsedSuggestions = parseAISuggestions(formattedText);
+  
       setAiSuggestions(parsedSuggestions);
     } catch (error) {
       console.error("Error analyzing resume:", error);
@@ -437,6 +446,8 @@ Please ensure each section is clearly separated and labeled.`;
     setIsAnalyzing(false);
   };
 
+
+  
   const parseAISuggestions = (text: string): string => {
     const sections = [
       "Overall Structure and Formatting",
@@ -457,7 +468,7 @@ Please ensure each section is clearly separated and labeled.`;
       } else if (trimmedLine.match(/^[a-e]\)/)) {
         parsedText += `\n#### ${trimmedLine}\n`;
       } else if (trimmedLine) {
-        parsedText += `${trimmedLine}\n`;
+        parsedText += `${trimmedLine}\n`; 
       }
     });
 
