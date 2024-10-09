@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
-import { Loader2, Clipboard, CheckCircle2, RefreshCw, Sparkles, Save, Download, Plus, X, Send, Play, Pause, StopCircle, Mic, MicOff, BarChart, Share2, Book, Video, FileText, Search, Menu, Home, Settings } from 'lucide-react'
+import { Loader2, Clipboard, CheckCircle2, RefreshCw, Sparkles, Save, Download, Plus, X, Send, Play, Pause, StopCircle, Mic, MicOff, BarChart, Share2, Book, Video, FileText, Search, Menu, Home, Settings, Calendar, Building } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
@@ -19,6 +19,8 @@ import ResourceLibrary from '@/components/ResourceLibrary'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { GoogleGenerativeAI } from "@google/generative-ai"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import InterviewScheduler from '@/IntrvSchedulPlanner'
+
 
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY_INTRV_QUES!)
 
@@ -243,6 +245,13 @@ export default function EnhancedQuestionGenerator() {
   const [audioURL, setAudioURL] = useState<string | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
+
+  // Company Research 
+  const [companyResearch, setCompanyResearch] = useState<CompanyResearch | null>(null)
+  const [companyName, setCompanyName] = useState('')
+  const [interviews, setInterviews] = useState<Interview[]>([])
+
+
 
   useEffect(() => {
     const savedSetsFromStorage = localStorage.getItem('savedQuestionSets')
@@ -579,6 +588,78 @@ export default function EnhancedQuestionGenerator() {
   }
 
 
+  const researchCompany = async () => {
+    if (!companyName.trim()) {
+      toast({
+        title: "Missing Company Name",
+        description: "Please enter a company name to research.",
+        variant: "destructive",
+      });
+      return;
+    }
+  
+    setIsLoading(true);
+    try {
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const prompt = `
+        Provide a brief overview of the company ${companyName}, including:
+        - Main products or services
+        - Recent news or developments
+        - Company culture and values
+        - Key competitors
+  
+        Format the response as a JSON object with these properties:
+        {
+          "products_services": "...",
+          "recent_news": "...",
+          "culture_values": "...",
+          "key_competitors": "..."
+        }
+      `;
+      
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = await response.text(); // Await the text() method
+  
+      console.log("Raw AI Response:", text); // Log the raw response for debugging
+  
+      // Clean the response to remove unwanted characters
+      const cleanedText = text
+        .replace(/```json|```/g, '') // Remove code block markers
+        .trim(); // Trim whitespace
+  
+      // Attempt to parse the cleaned response as JSON
+      let research;
+      try {
+        research = JSON.parse(cleanedText); // Ensure the response is valid JSON
+      } catch (parseError) {
+        console.error('Error parsing JSON:', parseError);
+        toast({
+          title: "Error Parsing Company Data",
+          description: "The response from the AI was not valid JSON. Please try again.",
+          variant: "destructive",
+        });
+        return; // Exit the function if parsing fails
+      }
+  
+      setCompanyResearch(research);
+      
+      toast({
+        title: "Company Research Complete",
+        description: `Research on ${companyName} is now available.`,
+      });
+    } catch (error) {
+      console.error('Error researching company:', error);
+      toast({
+        title: "Error Researching Company",
+        description: "There was an error fetching company information. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
 
 
 
@@ -603,6 +684,9 @@ export default function EnhancedQuestionGenerator() {
                 { id: 'saved', name: 'Saved Sets', icon: Save },
                 { id: 'progress', name: 'Progress', icon: BarChart },
                 { id: 'resources', name: 'Resources', icon: Book },
+                { id: 'calendar', name: 'Calendar', icon: Calendar},
+                { id: 'company-research', name: 'Company Research', icon: Building },
+
               ].map((item) => (
                 <li key={item.id}>
                   <Button
@@ -1075,6 +1159,64 @@ export default function EnhancedQuestionGenerator() {
                 onEditResource={editResource}
                 onDeleteResource={deleteResource}
               />
+            )}
+
+            {activeTab === 'calendar' && <InterviewScheduler /> }
+            {activeTab === 'company-research' && (
+              <Card className="bg-gray-900 border-gray-800">
+                <CardHeader>
+                  <CardTitle className="text-2xl text-white">Company Research</CardTitle>
+                  <CardDescription className="text-gray-400">Learn about your target company</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {companyResearch ? (
+                    <div className="space-y-4">
+                      <div>
+                        <h3 className="text-lg font-semibold text-white">Products/Services</h3>
+                        <p className="text-gray-300">{companyResearch.products_services}</p>
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-white">Recent News</h3>
+                        <p className="text-gray-300">{companyResearch.recent_news}</p>
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-white">Company Culture</h3>
+                        <p className="text-gray-300">{companyResearch.culture_values}</p>
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-white">Key Competitors</h3>
+                        <p className="text-gray-300">{companyResearch.key_competitors}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <Input
+                        placeholder="Enter company name"
+                        className="bg-gray-800 text-white border-gray-700"
+                        value={companyName}
+                        onChange={(e) => setCompanyName(e.target.value)}
+                      />
+                      <Button 
+                        onClick={researchCompany} 
+                        className="w-full bg-gradient-to-r from-green-400 to-blue-500 text-black hover:from-green-500 hover:to-blue-600"
+                        disabled={isLoading || !companyName.trim()}
+                      >
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Researching...
+                          </>
+                        ) : (
+                          <>
+                            <Building className="mr-2 h-4 w-4" />
+                            Research Company
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             )}
           </div>
         </main>
