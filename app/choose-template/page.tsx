@@ -145,7 +145,7 @@ export default function ChooseTemplate() {
                           setSelectedTemplate(template.id)
                           useTemplate(template.id)
                         }} 
-                        className="w-full bg-gradient-to-r from-green-400 to-blue-500 text-black hover:from-green-500 hover:to-blue-600 transition-all duration-300"
+                        className="w-full bg-gradient-to-r from-teal-400 to-blue-400 text-black hover:from-teal-500 hover:to-blue-500 transition-all duration-300"
                       >
                         {selectedTemplate === template.id ? (
                           <>
