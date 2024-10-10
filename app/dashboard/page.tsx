@@ -2,9 +2,10 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { FileText, List, Plus, Settings, Search, Bell, User, ChevronRight, Mail, Phone, BarChart, Star } from 'lucide-react'
+import { FileText, List, Plus, Settings, Search, Bell, User, ChevronRight, Mail, Phone, BarChart, Star, Edit, Apple, UserCheck, Folder, CheckCircle } from 'lucide-react'
 import Image from 'next/image'
 import { Sparkles } from 'lucide-react'
+import InterviewScheduler from '@/IntrvSchedulPlanner'
 
 export default function Dashboard() {
   return (
@@ -15,9 +16,11 @@ export default function Dashboard() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center">
             <Link href="/" className="flex items-center space-x-2">
-        <Sparkles className="w-8 h-8 text-green-400" />
-        <span className="text-2xl font-bold text-white">Dynamic<span className="text-green-400">Draft</span></span>
-      </Link>
+  <Sparkles className="w-8 h-8 text-green-400" />
+  <span className="text-2xl font-bold text-white" style={{ fontFamily: 'Nunito' }}>
+    Dynamic<span className="text-green-400">Draft</span>
+  </span>
+</Link>
               <div className="flex items-center space-x-6">
                 <Link href="/dashboard" className="text-gray-300 hover:text-white">Dashboard</Link>
                 <Link href="/choose-template" className="text-gray-300 hover:text-white">Templates</Link>
@@ -48,10 +51,10 @@ export default function Dashboard() {
             <DashboardCard 
               title="Manage Resumes" 
               description="View and edit your AI-enhanced resumes"
-              icon={<List className="w-6 h-6" />}
+              icon={<Edit className="w-6 h-6" />}
               link="/manage-resumes"
             />
-            <DashboardCard 
+            <DashboardCard  
               title="AI Templates" 
               description="Choose from our AI-optimized templates"
               icon={<FileText className="w-6 h-6" />}
@@ -60,27 +63,22 @@ export default function Dashboard() {
              <DashboardCard 
               title="AI Resume Optimizer" 
               description="Choose from our AI-optimized templates"
-              icon={<FileText className="w-6 h-6" />}
+              icon={<CheckCircle className="w-6 h-6" />}
               link="/resume-optimizer"
             />
             <DashboardCard 
               title="Job Search" 
               description="Choose from our AI-optimized templates"
-              icon={<FileText className="w-6 h-6" />}
+              icon={<Search className="w-6 h-6" />}
               link="/JobSearch"
             />
             <DashboardCard 
               title="AI-Powered Interview" 
               description="Choose from our AI-optimized templates"
-              icon={<FileText className="w-6 h-6" />}
+              icon={<UserCheck className="w-6 h-6" />}
               link="/IntrviewPrep"
             />
-            <DashboardCard 
-              title="VC" 
-              description="Choose from our AI-optimized templates"
-              icon={<FileText className="w-6 h-6" />}
-              link="/VC"
-            />
+           
           </div>
 
           <div className="mb-16">
