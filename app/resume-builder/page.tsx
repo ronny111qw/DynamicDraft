@@ -427,16 +427,10 @@ const ResumeBuilder = () => {
       const text = await response.text();
   
       // Clean the response text by removing special characters
-      const cleanedText = text.replace(/[^\w\s.,:;?!\n]/g, ''); // Keep letters, numbers, whitespace, and some punctuation
-  
-      // Format the cleaned text for better readability
-      const formattedText = cleanedText
-        .replace(/([1-5]\. )/g, '\n\n$1') // Add line breaks before numbered sections
-        .replace(/([a-e]\) )/g, '\n\n$1') // Add line breaks before lettered sections
-        .trim(); // Trim whitespace from the start and end
+      const cleanedText = text.replace(/[^\w\s.,:;?!]/g, ''); // Keep letters, numbers, whitespace, and some punctuation
   
       // Parse the structured response
-      const parsedSuggestions = parseAISuggestions(formattedText);
+      const parsedSuggestions = parseAISuggestions(cleanedText);
   
       setAiSuggestions(parsedSuggestions);
     } catch (error) {
@@ -445,9 +439,8 @@ const ResumeBuilder = () => {
     }
     setIsAnalyzing(false);
   };
-
-
   
+
   const parseAISuggestions = (text: string): string => {
     const sections = [
       "Overall Structure and Formatting",
@@ -468,7 +461,7 @@ const ResumeBuilder = () => {
       } else if (trimmedLine.match(/^[a-e]\)/)) {
         parsedText += `\n#### ${trimmedLine}\n`;
       } else if (trimmedLine) {
-        parsedText += `${trimmedLine}\n`; 
+        parsedText += `${trimmedLine}\n`;
       }
     });
 

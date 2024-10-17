@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
-import { Loader2, Clipboard, CheckCircle2, RefreshCw, Sparkles, Save, Download, Plus, X, Send, Play, Pause, StopCircle, Mic, MicOff, BarChart, Share2, Book, Video, FileText, Search, Menu, Home, Settings, Calendar, Building } from 'lucide-react'
+import { Loader2, Clipboard, CheckCircle2, RefreshCw, Sparkles, Save, Download, Plus, X, Send, Play, Pause, StopCircle, Mic, MicOff, BarChart, Share2, Book, Video, FileText, Search, Menu, Home, Settings, Calendar, Building, GraduationCap } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
@@ -19,14 +19,14 @@ import ResourceLibrary from '@/components/ResourceLibrary'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { GoogleGenerativeAI } from "@google/generative-ai"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import InterviewScheduler from '@/IntrvSchedulPlanner'
+import InterviewScheduler from '@/InterviewSchedulerPlanner'
 
 
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY_INTRV_QUES!)
 
 type QuestionType = {
   id: string
-  name: string
+  name: string 
 } 
 
 type Question = {
@@ -250,6 +250,8 @@ export default function EnhancedQuestionGenerator() {
   const [companyResearch, setCompanyResearch] = useState<CompanyResearch | null>(null)
   const [companyName, setCompanyName] = useState('')
   const [interviews, setInterviews] = useState<Interview[]>([])
+  const [learningPath, setLearningPath] = useState<string[]>([])
+
 
 
 
@@ -587,7 +589,6 @@ export default function EnhancedQuestionGenerator() {
     localStorage.setItem('resources', JSON.stringify(updatedResources))
   }
 
-
   const researchCompany = async () => {
     if (!companyName.trim()) {
       toast({
@@ -660,17 +661,114 @@ export default function EnhancedQuestionGenerator() {
     }
   };
 
+  
+  const generateLearningPath = async () => {
+    if (!resume.trim() || !jobDescription.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please provide both resume and job description to generate a learning path.",
+        variant: "destructive",
+      });
+      return;
+    }
+  
+    setIsLoading(true);
+    try {
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      
+      const prompt = `
+        Based on the following resume and job description, generate a personalized learning path.
+        
+        Resume:
+        ${resume}
+        
+        Job Description:
+        ${jobDescription}
+        
+       Please analyze the candidate's resume and job description and provide 5 specific skills or areas of knowledge the candidate should focus on improving. For each skill, also provide:
+
+- A brief explanation of why it's important for the specific job role.
+- Recommended resources for the candidate to improve in that area (e.g., online courses, books, articles, or tools).
+
+Format your response as a JSON array of objects, where each object has 'skill', 'explanation', and 'resources' properties.
+
+Example:
+[
+  {
+    "skill": "React.js",
+    "explanation": "React is crucial for building interactive UI components for this role",
+    "resources": [
+      "Official React documentation: https://reactjs.org/docs/getting-started.html",
+      "FreeCodeCamp's React course: https://www.freecodecamp.org/learn/front-end-development-libraries/react/"
+    ]
+  } 
+]
+
+      `;
+  
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = await response.text();
+      
+      console.log("Raw AI Response:", text);
+      
+      // Clean the response to remove unwanted characters
+      const cleanedText = text
+        .replace(/```json|```/g, '') // Remove code block markers
+        .trim(); // Trim whitespace
+  
+      let parsedResponse;
+      try {
+        parsedResponse = JSON.parse(cleanedText);
+        if (!Array.isArray(parsedResponse)) {
+          throw new Error('Response is not an array');
+        }
+      } catch (parseError) {
+        console.error("JSON parsing error:", parseError);
+        // Fallback: Extract skills from text
+        const skills = cleanedText.split('\n')
+          .filter(line => line.trim().startsWith('-') || line.trim().startsWith('*'))
+          .map(line => ({
+            skill: line.trim().replace(/^[-*]\s*/, '').split(':')[0],
+            explanation: line.split(':')[1]?.trim() || 'Important for the role'
+          }))
+          .filter(item => item.skill)
+          .slice(0, 5);
+        
+        if (skills.length > 0) {
+          parsedResponse = skills;
+        } else {
+          throw new Error('Could not parse response');
+        }
+      }
+  
+      setLearningPath(parsedResponse);
+      
+      toast({
+        title: "Learning Path Generated",
+        description: "Your personalized learning path is now available.",
+      });
+    } catch (error) {
+      console.error("Learning path generation error:", error);
+      toast({
+        title: "Error Generating Learning Path",
+        description: "There was an error creating your learning path. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
 
 
 
-
-  return (
-    <div className="bg-black min-h-screen text-white font-sans">
+return (
+    <div className="bg-white min-h-screen text-gray-900 font-sans">
       <div className="absolute top-0 left-0 w-full h-full bg-[url('/noise.png')] opacity-5 pointer-events-none"></div>
       <div className="relative z-10 flex h-screen overflow-hidden">
         {/* Sidebar */}
-        <aside className="w-64 bg-gray-900 p-4 hidden md:block">
+        <aside className="w-64 bg-gray-100 p-4 hidden md:block">
           <h1 className="text-2xl font-bold mb-6 flex items-center">
             <Sparkles className="w-8 h-8 text-green-400 mr-2" />
             <span>AI Interview Prep</span>
@@ -686,12 +784,12 @@ export default function EnhancedQuestionGenerator() {
                 { id: 'resources', name: 'Resources', icon: Book },
                 { id: 'calendar', name: 'Calendar', icon: Calendar},
                 { id: 'company-research', name: 'Company Research', icon: Building },
-
+                { id: 'learning-path', name: 'Learning Path', icon: GraduationCap },
               ].map((item) => (
                 <li key={item.id}>
                   <Button
                     variant={activeTab === item.id ? 'default' : 'ghost'}
-                    className={`w-full justify-start ${activeTab === item.id ? 'bg-gradient-to-r from-green-400 to-blue-500 text-black' : 'text-gray-300 hover:text-white hover:bg-gray-800'}`}
+                    className={`w-full justify-start ${activeTab === item.id ? 'bg-gradient-to-r from-green-400 to-blue-500 text-white' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'}`}
                     onClick={() => setActiveTab(item.id)}
                   >
                     <item.icon className="mr-2 h-4 w-4" />
@@ -706,11 +804,11 @@ export default function EnhancedQuestionGenerator() {
         {/* Mobile menu */}
         <Sheet>
           <SheetTrigger asChild>
-            <Button variant="outline" size="icon" className="md:hidden absolute top-4 left-4 bg-gray-800 text-white">
+            <Button variant="outline" size="icon" className="md:hidden absolute top-4 left-4 bg-white text-gray-900">
               <Menu className="h-6 w-6" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-64 bg-gray-900 text-white">
+          <SheetContent side="left" className="w-64 bg-white text-gray-900">
             <h1 className="text-2xl font-bold mb-6 flex items-center">
               <Sparkles className="w-8 h-8 text-green-400 mr-2" />
               <span>AI Interview Prep</span>
@@ -728,7 +826,7 @@ export default function EnhancedQuestionGenerator() {
                   <li key={item.id}>  
                     <Button
                       variant={activeTab === item.id ? 'default' : 'ghost'}
-                      className={`w-full justify-start ${activeTab === item.id ? 'bg-gradient-to-r from-green-400 to-blue-500 text-black' : 'text-gray-300 hover:text-white hover:bg-gray-800'}`}
+                      className={`w-full justify-start ${activeTab === item.id ? 'bg-gradient-to-r from-green-400 to-blue-500 text-white' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'}`}
                       onClick={() => setActiveTab(item.id)}
                     >
                       <item.icon className="mr-2 h-4 w-4" />
@@ -745,39 +843,39 @@ export default function EnhancedQuestionGenerator() {
         <main className="flex-1 overflow-y-auto p-8">
           <div className="max-w-4xl mx-auto">
             {activeTab === 'input' && (
-              <Card className="bg-gray-900 border-gray-800">
+              <Card>
                 <CardHeader>
-                  <CardTitle className="text-2xl text-white">Input Information</CardTitle>
-                  <CardDescription className="text-gray-400">Provide your resume and job description</CardDescription>
+                  <CardTitle className="text-2xl">Input Information</CardTitle>
+                  <CardDescription>Provide your resume and job description</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label htmlFor="resume" className="text-white">Resume</Label>
+                    <Label htmlFor="resume">Resume</Label>
                     <Textarea
                       id="resume"
                       placeholder="Paste your resume here..."
                       value={resume}
                       onChange={(e) => setResume(e.target.value)}
-                      className="h-40 bg-gray-800 text-white border-gray-700"
+                      className="h-40"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="jobDescription" className="text-white">Job Description</Label>
+                    <Label htmlFor="jobDescription">Job Description</Label>
                     <Textarea
                       id="jobDescription"
                       placeholder="Paste the job description here..."
                       value={jobDescription}
                       onChange={(e) => setJobDescription(e.target.value)}
-                      className="h-40 bg-gray-800 text-white border-gray-700"
+                      className="h-40"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="difficulty" className="text-white">Difficulty Level</Label>
+                    <Label htmlFor="difficulty">Difficulty Level</Label>
                     <Select value={difficulty} onValueChange={setDifficulty}>
-                      <SelectTrigger id="difficulty" className="bg-gray-800 text-white border-gray-700">
+                      <SelectTrigger id="difficulty">
                         <SelectValue placeholder="Select difficulty" />
                       </SelectTrigger>
-                      <SelectContent className="bg-gray-800 text-white border-gray-700">
+                      <SelectContent>
                         <SelectItem value="beginner">Beginner</SelectItem>
                         <SelectItem value="intermediate">Intermediate</SelectItem>
                         <SelectItem value="advanced">Advanced</SelectItem>
@@ -785,12 +883,12 @@ export default function EnhancedQuestionGenerator() {
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="industry" className="text-white">Industry</Label>
+                    <Label htmlFor="industry">Industry</Label>
                     <Select value={selectedIndustry} onValueChange={setSelectedIndustry}>
-                      <SelectTrigger id="industry" className="bg-gray-800 text-white border-gray-700">
+                      <SelectTrigger id="industry">
                         <SelectValue placeholder="Select industry" />
                       </SelectTrigger>
-                      <SelectContent className="bg-gray-800 text-white border-gray-700">
+                      <SelectContent>
                         <SelectItem value="general">General (No specific industry)</SelectItem>
                         {industrySpecificSets.map((industry) => (
                           <SelectItem key={industry.id} value={industry.id}>{industry.name}</SelectItem>
@@ -799,10 +897,10 @@ export default function EnhancedQuestionGenerator() {
                     </Select>
                   </div>
                   <div>
-                    <Label className="text-white">Question Types</Label>
+                    <Label>Question Types</Label>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {questionTypes.map((type) => (
-                        <Badge key={type.id} variant="secondary" className="bg-gray-800 text-white">
+                        <Badge key={type.id} variant="secondary">
                           {type.name}
                           {!defaultQuestionTypes.some(defaultType => defaultType.id === type.id) && (
                             <button
@@ -827,7 +925,7 @@ export default function EnhancedQuestionGenerator() {
                           value={newQuestionType.name}
                           onChange={(e) => setNewQuestionType({ ...newQuestionType, name: e.target.value })}
                           placeholder="New question type"
-                          className="flex-grow bg-gray-800 text-white border-gray-700"
+                          className="flex-grow"
                         />
                         <Button onClick={() => {
                           if (newQuestionType.name) {
@@ -839,15 +937,15 @@ export default function EnhancedQuestionGenerator() {
                               description: `"${newQuestionType.name}" has been added.`,
                             })
                           }
-                        }} className="bg-green-500 text-black hover:bg-green-600">
+                        }} className="bg-green-500 text-white hover:bg-green-600">
                           Add
                         </Button>
-                        <Button variant="outline" onClick={() => setIsAddingQuestionType(false)} className="text-white border-gray-700 hover:bg-gray-800">
+                        <Button variant="outline" onClick={() => setIsAddingQuestionType(false)}>
                           Cancel
                         </Button>
                       </div>
                     ) : (
-                      <Button onClick={() => setIsAddingQuestionType(true)} variant="outline" className="mt-2 text-white border-gray-700 hover:bg-gray-800">
+                      <Button onClick={() => setIsAddingQuestionType(true)} variant="outline" className="mt-2">
                         <Plus className="mr-2 h-4 w-4" />
                         Add Question Type
                       </Button>
@@ -857,7 +955,7 @@ export default function EnhancedQuestionGenerator() {
                 <CardFooter>
                   <Button 
                     onClick={generateQuestions} 
-                    className="w-full bg-gradient-to-r from-green-400 to-blue-500 text-black hover:from-green-500 hover:to-blue-600"
+                    className="w-full bg-gradient-to-r from-green-400 to-blue-500 text-white hover:from-green-500 hover:to-blue-600"
                     disabled={isLoading}
                   >
                     {isLoading ? (
@@ -877,26 +975,26 @@ export default function EnhancedQuestionGenerator() {
             )}
 
             {activeTab === 'tips' && (
-              <Card className="bg-gray-900 border-gray-800">
+              <Card>
                 <CardHeader>
-                  <CardTitle className="text-2xl text-white">Interview Preparation Tips</CardTitle>
-                  <CardDescription className="text-gray-400">Get tailored tips based on your resume and the job description</CardDescription>
+                  <CardTitle className="text-2xl">Interview Preparation Tips</CardTitle>
+                  <CardDescription>Get tailored tips based on your resume and the job description</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {interviewTips.length > 0 ? (
-                    <ul className="list-disc list-inside space-y-2 text-white">
+                    <ul className="list-disc list-inside space-y-2">
                       {interviewTips.map((tip, index) => (
                         <li key={index}>{tip}</li>
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-gray-400">No tips generated yet. Click the button below to generate tips.</p>
+                    <p className="text-gray-600">No tips generated yet. Click the button below to generate tips.</p>
                   )}
                 </CardContent>
                 <CardFooter>
                   <Button 
                     onClick={generateTips} 
-                    className="w-full bg-gradient-to-r from-green-400 to-blue-500 text-black hover:from-green-500 hover:to-blue-600"
+                    className="w-full bg-gradient-to-r from-green-400 to-blue-500 text-white hover:from-green-500 hover:to-blue-600"
                     disabled={isGeneratingTips}
                   >
                     {isGeneratingTips ? (
@@ -916,38 +1014,38 @@ export default function EnhancedQuestionGenerator() {
             )}
 
             {activeTab === 'questions' && (
-              <Card className="bg-gray-900 border-gray-800">
+              <Card>
                 <CardHeader>
-                  <CardTitle className="text-2xl text-white">Generated Interview Questions</CardTitle>
-                  <CardDescription className="text-gray-400">Review, answer, and get feedback on these tailored interview questions.</CardDescription>
+                  <CardTitle className="text-2xl">Generated Interview Questions</CardTitle>
+                  <CardDescription>Review, answer, and get feedback on these tailored interview questions.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {isMockInterviewMode ? (
                     <div className="space-y-4">
-                      <h3 className="text-xl font-bold text-white">Mock Interview Mode</h3>
-                      <div className="flex justify-between items-center text-gray-300">
+                      <h3 className="text-xl font-bold">Mock Interview Mode</h3>
+                      <div className="flex justify-between items-center text-gray-600">
                         <p>Question {currentQuestionIndex + 1} of {questions.length}</p>
                         <p>Time: {formatTime(interviewTimer)} / {formatTime(interviewDuration)}</p>
                       </div>
-                      <Progress value={(interviewTimer / interviewDuration) * 100} className="w-full bg-gray-700" />
-                      <Progress value={((currentQuestionIndex + 1) / questions.length) * 100} className="w-full bg-gray-700" />
-                      <Card className="bg-gray-800 border-gray-700">
+                      <Progress value={(interviewTimer / interviewDuration) * 100} className="w-full" />
+                      <Progress value={((currentQuestionIndex + 1) / questions.length) * 100} className="w-full" />
+                      <Card>
                         <CardContent className="pt-6">
-                          <p className="text-lg font-medium text-white">{questions[currentQuestionIndex].question}</p>
+                          <p className="text-lg font-medium">{questions[currentQuestionIndex].question}</p>
                         </CardContent>
                       </Card>
                       <Textarea
                         value={questions[currentQuestionIndex].userAnswer || ''}
                         onChange={(e) => {
-                          const updatedQuestions = [...questions]
+                          const  updatedQuestions = [...questions]
                           updatedQuestions[currentQuestionIndex] = { ...updatedQuestions[currentQuestionIndex], userAnswer: e.target.value }
                           setQuestions(updatedQuestions)
                         }}
                         placeholder="Type your answer here..."
-                        className="h-32 bg-gray-800 text-white border-gray-700"
+                        className="h-32"
                       />
                       <div className="flex justify-between items-center">
-                        <Button onClick={() => evaluateAnswer(currentQuestionIndex)} disabled={isEvaluating || !questions[currentQuestionIndex].userAnswer} className="bg-green-500 text-black hover:bg-green-600">
+                        <Button onClick={() => evaluateAnswer(currentQuestionIndex)} disabled={isEvaluating || !questions[currentQuestionIndex].userAnswer} className="bg-green-500 text-white hover:bg-green-600">
                           {isEvaluating ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -961,38 +1059,38 @@ export default function EnhancedQuestionGenerator() {
                           )}
                         </Button>
                         <div className="space-x-2">
-                          <Button onClick={pauseResumeInterview} variant="outline" className="text-white border-gray-700 hover:bg-gray-800">
+                          <Button onClick={pauseResumeInterview} variant="outline">
                             {isInterviewPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
                           </Button>
-                          <Button onClick={nextQuestion} className="bg-blue-500 text-black hover:bg-blue-600">
+                          <Button onClick={nextQuestion} className="bg-blue-500 text-white hover:bg-blue-600">
                             {currentQuestionIndex < questions.length - 1 ? 'Next Question' : 'End Interview'}
                           </Button>
                         </div>
-                        <Button onClick={isRecording ? stopRecording : startRecording} variant="outline" className="text-white border-gray-700 hover:bg-gray-800">
+                        <Button onClick={isRecording ? stopRecording : startRecording} variant="outline">
                           {isRecording ? <MicOff className="h-4 w-4 mr-2" /> : <Mic className="h-4 w-4 mr-2" />}
                           {isRecording ? 'Stop Recording' : 'Start Recording'}
                         </Button>
                       </div>
                       {audioURL && (
                         <div className="mt-4">
-                          <h4 className="font-semibold mb-2 text-white">Interview Recording</h4>
+                          <h4 className="font-semibold mb-2">Interview Recording</h4>
                           <audio src={audioURL} controls className="w-full" />
                         </div>
                       )}
                       {questions[currentQuestionIndex].feedback && (
-                        <Card className="mt-4 bg-gray-800 border-gray-700">
+                        <Card className="mt-4">
                           <CardHeader>
-                            <CardTitle className="text-white">Feedback</CardTitle>
+                            <CardTitle>Feedback</CardTitle>
                           </CardHeader>
-                          <CardContent className="text-gray-300">
+                          <CardContent>
                             <p className="mb-2">Overall Rating: {questions[currentQuestionIndex].feedback.overallRating}/5</p>
-                            <h5 className="font-semibold mb-1 text-white">Strengths:</h5>
+                            <h5 className="font-semibold mb-1">Strengths:</h5>
                             <ul className="list-disc list-inside mb-2">
                               {questions[currentQuestionIndex].feedback.strengths.map((strength, index) => (
                                 <li key={index}>{strength}</li>
                               ))}
                             </ul>
-                            <h5 className="font-semibold mb-1 text-white">Areas for Improvement:</h5>
+                            <h5 className="font-semibold mb-1">Areas for Improvement:</h5>
                             <ul className="list-disc list-inside mb-2">
                               {questions[currentQuestionIndex].feedback.areasForImprovement.map((area, index) => (
                                 <li key={index}>{area}</li>
@@ -1026,7 +1124,7 @@ export default function EnhancedQuestionGenerator() {
                       </ScrollArea>
                       <div className="mt-4 space-y-4">
                         <div>
-                          <Label htmlFor="interview-duration" className="text-white">Interview Duration (minutes)</Label>
+                          <Label htmlFor="interview-duration">Interview Duration (minutes)</Label>
                           <div className="flex items-center space-x-2">
                             <Slider
                               id="interview-duration"
@@ -1035,34 +1133,32 @@ export default function EnhancedQuestionGenerator() {
                               step={5}
                               value={[interviewDuration / 60]}
                               onValueChange={(value) => handleDurationChange(value[0])}
-                              className="bg-gray-700"
                             />
-                            <span className="w-12 text-center text-white">{interviewDuration / 60}</span>
+                            <span className="w-12 text-center">{interviewDuration / 60}</span>
                           </div>
                         </div>
                         <div className="flex space-x-2">
-                          <Button onClick={startMockInterview} className="bg-green-500 text-black hover:bg-green-600">
+                          <Button onClick={startMockInterview} className="bg-green-500 text-white hover:bg-green-600">
                             Start Mock Interview
                           </Button>
                           <Dialog>
                             <DialogTrigger asChild>
-                              <Button variant="outline" className="text-white border-gray-700 hover:bg-gray-800">
+                              <Button variant="outline">
                                 <Save className="mr-2 h-4 w-4" />
                                 Save Question Set
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="bg-gray-900 text-white border-gray-800">
+                            <DialogContent>
                               <DialogHeader>
                                 <DialogTitle>Save Question Set</DialogTitle>
-                                <DialogDescription className="text-gray-400">Enter a name for this question set to save it for future use.</DialogDescription>
+                                <DialogDescription>Enter a name for this question set to save it for future use.</DialogDescription>
                               </DialogHeader>
                               <Input
                                 value={currentSetName}
                                 onChange={(e) => setCurrentSetName(e.target.value)}
                                 placeholder="Question Set Name"
-                                className="bg-gray-800 text-white border-gray-700"
                               />
-                              <Button onClick={saveQuestionSet} className="w-full bg-green-500 text-black hover:bg-green-600">
+                              <Button onClick={saveQuestionSet} className="w-full bg-green-500 text-white hover:bg-green-600">
                                 Save
                               </Button>
                             </DialogContent>
@@ -1076,25 +1172,25 @@ export default function EnhancedQuestionGenerator() {
             )}
 
             {activeTab === 'saved' && (
-              <Card className="bg-gray-900 border-gray-800">
+              <Card>
                 <CardHeader>
-                  <CardTitle className="text-2xl text-white">Saved Question Sets</CardTitle>
-                  <CardDescription className="text-gray-400">Load or manage your saved question sets.</CardDescription>
+                  <CardTitle className="text-2xl">Saved Question Sets</CardTitle>
+                  <CardDescription>Load or manage your saved question sets.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ScrollArea className="h-[60vh] pr-4">
                     {savedSets.map((set, index) => (
-                      <Card key={index} className="mb-4 bg-gray-800 border-gray-700">
+                      <Card key={index} className="mb-4">
                         <CardHeader>
-                          <CardTitle className="text-white">{set.name}</CardTitle>
-                          <CardDescription className="text-gray-400">Difficulty: {set.difficulty}</CardDescription>
+                          <CardTitle>{set.name}</CardTitle>
+                          <CardDescription>Difficulty: {set.difficulty}</CardDescription>
                         </CardHeader>
-                        <CardContent className="text-gray-300">
+                        <CardContent>
                           <p>{set.questions.length} questions</p>
                           {set.industry && <p>Industry: {industrySpecificSets.find(i => i.id === set.industry)?.name || set.industry}</p>}
                         </CardContent>
                         <CardFooter>
-                          <Button onClick={() => loadQuestionSet(set)} className="bg-green-500 text-black hover:bg-green-600">
+                          <Button onClick={() => loadQuestionSet(set)} className="bg-green-500 text-white hover:bg-green-600">
                             Load Set
                           </Button>
                         </CardFooter>
@@ -1106,10 +1202,10 @@ export default function EnhancedQuestionGenerator() {
             )}
 
             {activeTab === 'progress' && (
-              <Card className="bg-gray-900 border-gray-800">
+              <Card>
                 <CardHeader>
-                  <CardTitle className="text-2xl text-white">Progress Tracking</CardTitle>
-                  <CardDescription className="text-gray-400">Track your performance over multiple mock interviews.</CardDescription>
+                  <CardTitle className="text-2xl">Progress Tracking</CardTitle>
+                  <CardDescription>Track your performance over multiple mock interviews.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {interviewResults.length > 0 ? (
@@ -1117,17 +1213,17 @@ export default function EnhancedQuestionGenerator() {
                       <div className="h-80">
                         <ResponsiveContainer width="100%" height="100%">
                           <LineChart data={interviewResults}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                            <XAxis dataKey="date" stroke="#9CA3AF" />
-                            <YAxis domain={[0, 5]} stroke="#9CA3AF" />
-                            <Tooltip contentStyle={{ backgroundColor: '#1F2937', border: 'none' }} />
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="date" />
+                            <YAxis domain={[0, 5]} />
+                            <Tooltip />
                             <Legend />
                             <Line type="monotone" dataKey="averageScore" stroke="#10B981" name="Average Score" />
                           </LineChart>
                         </ResponsiveContainer>
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold mb-2 text-white">Performance by Question Type</h3>
+                        <h3 className="text-lg font-semibold mb-2">Performance by Question Type</h3>
                         {Object.entries(
                           interviewResults.reduce((acc, result) => {
                             Object.entries(result.questionTypes).forEach(([type, score]) => {
@@ -1138,21 +1234,21 @@ export default function EnhancedQuestionGenerator() {
                           }, {} as { [key: string]: number[] })
                         ).map(([type, scores]) => (
                           <div key={type} className="mb-4">
-                            <h4 className="font-medium text-white">{type}</h4>
-                            <Progress value={(scores.reduce((a, b) => a + b, 0) / scores.length / 5) * 100} className="h-2 bg-gray-700" />
-                            <p className="text-sm text-gray-400">Average: {(scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2)}/5</p>
+                            <h4 className="font-medium">{type}</h4>
+                            <Progress value={(scores.reduce((a, b) => a + b, 0) / scores.length / 5) * 100} className="h-2" />
+                            <p className="text-sm text-gray-600">Average: {(scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2)}/5</p>
                           </div>
                         ))}
                       </div>
                     </div>
                   ) : (
-                    <p className="text-gray-400">No interview data available yet. Complete a mock interview to see your progress.</p>
+                    <p className="text-gray-600">No interview data available yet. Complete a mock interview to see your progress.</p>
                   )}
                 </CardContent>
               </Card>
             )}
 
-             {activeTab === 'resources' && (
+            {activeTab === 'resources' && (
               <ResourceLibrary
                 resources={resources}
                 onAddResource={addResource}
@@ -1161,44 +1257,44 @@ export default function EnhancedQuestionGenerator() {
               />
             )}
 
-            {activeTab === 'calendar' && <InterviewScheduler /> }
+            {activeTab === 'calendar' && <InterviewScheduler />}
+
             {activeTab === 'company-research' && (
-              <Card className="bg-gray-900 border-gray-800">
+              <Card>
                 <CardHeader>
-                  <CardTitle className="text-2xl text-white">Company Research</CardTitle>
-                  <CardDescription className="text-gray-400">Learn about your target company</CardDescription>
+                  <CardTitle className="text-2xl">Company Research</CardTitle>
+                  <CardDescription>Learn about your target company</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {companyResearch ? (
                     <div className="space-y-4">
                       <div>
-                        <h3 className="text-lg font-semibold text-white">Products/Services</h3>
-                        <p className="text-gray-300">{companyResearch.products_services}</p>
+                        <h3 className="text-lg font-semibold">Products/Services</h3>
+                        <p>{companyResearch.products_services}</p>
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-white">Recent News</h3>
-                        <p className="text-gray-300">{companyResearch.recent_news}</p>
+                        <h3 className="text-lg font-semibold">Recent News</h3>
+                        <p>{companyResearch.recent_news}</p>
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-white">Company Culture</h3>
-                        <p className="text-gray-300">{companyResearch.culture_values}</p>
+                        <h3 className="text-lg font-semibold">Company Culture</h3>
+                        <p>{companyResearch.culture_values}</p>
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-white">Key Competitors</h3>
-                        <p className="text-gray-300">{companyResearch.key_competitors}</p>
+                        <h3 className="text-lg font-semibold">Key Competitors</h3>
+                        <p>{companyResearch.key_competitors}</p>
                       </div>
                     </div>
                   ) : (
                     <div className="space-y-4">
                       <Input
                         placeholder="Enter company name"
-                        className="bg-gray-800 text-white border-gray-700"
                         value={companyName}
                         onChange={(e) => setCompanyName(e.target.value)}
                       />
                       <Button 
                         onClick={researchCompany} 
-                        className="w-full bg-gradient-to-r from-green-400 to-blue-500 text-black hover:from-green-500 hover:to-blue-600"
+                        className="w-full bg-gradient-to-r from-green-400 to-blue-500 text-white hover:from-green-500 hover:to-blue-600"
                         disabled={isLoading || !companyName.trim()}
                       >
                         {isLoading ? (
@@ -1216,6 +1312,52 @@ export default function EnhancedQuestionGenerator() {
                     </div>
                   )}
                 </CardContent>
+              </Card>
+            )}
+
+            {activeTab === 'learning-path' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-2xl">Personalized Learning Path</CardTitle>
+                  <CardDescription>
+                    Focus areas based on your resume and job description
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {learningPath.length > 0 ? (
+                    <ul className="list-disc list-inside space-y-2">
+                      {learningPath.map((item, index) => (
+                        <li key={index}>
+                          <strong>{item.skill}</strong>: {item.explanation} <br />
+                          <em>Resources: {item.improvementSuggestions}</em>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-gray-600">
+                      No learning path generated yet. Click the button below to create your personalized learning path.
+                    </p>
+                  )}
+                </CardContent>
+                <CardFooter>
+                  <Button
+                    onClick={generateLearningPath}
+                    className="w-full bg-gradient-to-r from-green-400 to-blue-500 text-white hover:from-green-500 hover:to-blue-600"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Generating Learning Path...
+                      </>
+                    ) : (
+                      <>
+                        <GraduationCap className="mr-2 h-4 w-4" />
+                        Generate Learning Path
+                      </>
+                    )}
+                  </Button>
+                </CardFooter>
               </Card>
             )}
           </div>
@@ -1242,28 +1384,28 @@ function QuestionCard({ question, index, questionTypes, onAnswerChange, onEvalua
   }
 
   return (
-    <AccordionItem value={`item-${index}`} className="border-b border-gray-700">
-      <AccordionTrigger className="text-white hover:bg-gray-800">
+    <AccordionItem value={`item-${index}`}>
+      <AccordionTrigger>
         <div className="flex items-center space-x-2">
-          <Badge variant="secondary" className="bg-gray-700 text-white">
+          <Badge variant="secondary">
             {questionType.name}
           </Badge>
           <span className="text-sm font-medium">Question {index + 1}</span>
         </div>
       </AccordionTrigger>
-      <AccordionContent className="space-y-2 text-gray-300">
-        <p className="text-lg font-medium text-white">{question.question}</p>
-        <p className="text-sm text-gray-400">
+      <AccordionContent className="space-y-2">
+        <p className="text-lg font-medium">{question.question}</p>
+        <p className="text-sm text-gray-600">
           <span className="font-semibold">Rationale:</span> {question.rationale}
         </p>
         <Textarea
           value={question.userAnswer || ''}
           onChange={(e) => onAnswerChange(e.target.value)}
           placeholder="Type your answer here..."
-          className="h-32 bg-gray-800 text-white border-gray-700"
+          className="h-32"
         />
         <div className="flex justify-between">
-          <Button variant="outline" size="sm" onClick={copyToClipboard} className="text-white border-gray-700 hover:bg-gray-800">
+          <Button variant="outline" size="sm" onClick={copyToClipboard}>
             {isCopied ? (
               <>
                 <CheckCircle2 className="mr-2 h-4 w-4" />
@@ -1276,7 +1418,7 @@ function QuestionCard({ question, index, questionTypes, onAnswerChange, onEvalua
               </>
             )}
           </Button>
-          <Button onClick={onEvaluate} disabled={isEvaluating || !question.userAnswer} className="bg-green-500 text-black hover:bg-green-600">
+          <Button onClick={onEvaluate} disabled={isEvaluating || !question.userAnswer} className="bg-green-500 text-white hover:bg-green-600">
             {isEvaluating ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1291,19 +1433,19 @@ function QuestionCard({ question, index, questionTypes, onAnswerChange, onEvalua
           </Button>
         </div>
         {question.feedback && (
-          <Card className="mt-4 bg-gray-800 border-gray-700">
+          <Card className="mt-4">
             <CardHeader>
-              <CardTitle className="text-white">Feedback</CardTitle>
+              <CardTitle>Feedback</CardTitle>
             </CardHeader>
-            <CardContent className="text-gray-300">
+            <CardContent>
               <p className="mb-2">Overall Rating: {question.feedback.overallRating}/5</p>
-              <h5 className="font-semibold mb-1 text-white">Strengths:</h5>
+              <h5 className="font-semibold mb-1">Strengths:</h5>
               <ul className="list-disc list-inside mb-2">
                 {question.feedback.strengths.map((strength, index) => (
                   <li key={index}>{strength}</li>
                 ))}
               </ul>
-              <h5 className="font-semibold mb-1 text-white">Areas for Improvement:</h5>
+              <h5 className="font-semibold mb-1">Areas for Improvement:</h5>
               <ul className="list-disc list-inside mb-2">
                 {question.feedback.areasForImprovement.map((area, index) => (
                   <li key={index}>{area}</li>

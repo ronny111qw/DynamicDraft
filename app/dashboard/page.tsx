@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { FileText, List, Plus, Settings, Search, Bell, User, ChevronRight, Mail, Phone, BarChart, Star, Edit, Apple, UserCheck, Folder, CheckCircle } from 'lucide-react'
 import Image from 'next/image'
 import { Sparkles } from 'lucide-react'
-import InterviewScheduler from '@/IntrvSchedulPlanner'
+
 
 export default function Dashboard() {
   return (
@@ -44,40 +44,41 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
             <DashboardCard 
               title="Create New Resume" 
-              description="Start building an AI-powered resume"
+              description="Build an AI-powered resume effortlessly"
               icon={<Plus className="w-6 h-6" />}
               link="/resume-builder"
             />
             <DashboardCard 
               title="Manage Resumes" 
-              description="View and edit your AI-enhanced resumes"
+              description="Edit and view your AI-enhanced resumes"
               icon={<Edit className="w-6 h-6" />}
               link="/manage-resumes"
             />
             <DashboardCard  
               title="AI Templates" 
-              description="Choose from our AI-optimized templates"
+              description="Select from a variety of optimized templates"
               icon={<FileText className="w-6 h-6" />}
               link="/choose-template"
             />
              <DashboardCard 
               title="AI Resume Optimizer" 
-              description="Choose from our AI-optimized templates"
+              description="Boost your resume with AI insights"
               icon={<CheckCircle className="w-6 h-6" />}
               link="/resume-optimizer"
             />
             <DashboardCard 
-              title="Job Search" 
-              description="Choose from our AI-optimized templates"
-              icon={<Search className="w-6 h-6" />}
-              link="/JobSearch"
-            />
-            <DashboardCard 
               title="AI-Powered Interview" 
-              description="Choose from our AI-optimized templates"
+              description="Prepare with AI-driven practice questions"
               icon={<UserCheck className="w-6 h-6" />}
               link="/IntrviewPrep"
             />
+            <DashboardCard 
+              title="AI-Powered Mock Interview" 
+              description="Prepare with AI-driven practice questions"
+              icon={<UserCheck className="w-6 h-6" />}
+              link="/intmock"
+            />
+           
            
           </div>
 

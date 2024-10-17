@@ -1,5 +1,5 @@
 "use client"
-
+import {signIn} from 'next-auth/react'
 import React, { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -37,6 +37,7 @@ export default function LandingPage() {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           className="bg-gradient-to-r from-green-400 to-blue-500 text-black px-4 py-2 rounded-full text-sm font-medium hover:from-green-500 hover:to-blue-600 transition-all duration-300"
+
         >
           Get Started
         </motion.button>
@@ -397,4 +398,4 @@ function FAQItem({ question, answer }: FAQItemProps) {
       <p className="text-gray-300">{answer}</p>
     </motion.div>
   )
-}
+} 

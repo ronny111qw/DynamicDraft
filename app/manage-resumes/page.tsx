@@ -83,8 +83,9 @@ const ResumeManager: React.FC = () => {
         </nav>
 
         <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-          <h1 className="text-4xl font-bold mb-8 bg-gradient-to-r from-green-400 to-blue-500 text-transparent bg-clip-text">My Resumes</h1>
+          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-green-400 to-blue-500 text-transparent bg-clip-text">My Resumes</h1>
           
+          <div className="mb-8">
           <Card className="bg-gray-900 border-gray-800">
             <CardContent className="pt-6">
               <motion.div 
@@ -135,7 +136,7 @@ const ResumeManager: React.FC = () => {
                           </>
                         ) : (
                           <>
-                            <Button onClick={() => loadResume(resume.id)} className="bg-gradient-to-r from-green-400 to-blue-500 text-black hover:from-green-500 hover:to-blue-600">
+                            <Button onClick={() => loadResume(resume.id)} className="bg-gradient-to-r from-teal-400 to-blue-400 text-gray-800 hover:from-teal-500 hover:to-blue-500">
                               <Edit className="w-4 h-4 mr-2" /> Edit
                             </Button>
                             <Button onClick={() => startRenaming(resume.id, resume.name)} className="bg-yellow-500 hover:bg-yellow-600">
@@ -154,6 +155,7 @@ const ResumeManager: React.FC = () => {
             </CardContent>
           </Card>
         </div>
+      </div>
       </div>
     </div>
   )
