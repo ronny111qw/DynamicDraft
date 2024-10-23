@@ -1,34 +1,39 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Textarea } from "@/components/ui/textarea"
 import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, Mic, MicOff, Camera, CameraOff, ChevronRight } from "lucide-react"
+import { Loader2, Mic, MicOff, Volume2, VolumeX, ChevronRight } from "lucide-react"
 import { Toast, ToastProvider, ToastViewport } from "@/components/ui/toast"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import dynamic from 'next/dynamic'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
-// AI Interviewer Component
-interface AiInterviewerProps {
-  isInterviewerTurn: boolean
+// Types
+interface InterviewHistoryItem {
+  question: string
+  answer: string
+  timestamp: number
+  duration: number
 }
 
-export const AiInterviewer: React.FC<AiInterviewerProps> = ({ isInterviewerTurn }) => {
+interface Evaluation {
+  strengths: string[]
+  improvements: string[]
+  overallScore: number
+  feedback: string
+}
+
+// AI Interviewer Component with Speaking Animation
+const AiInterviewer = React.memo(({ isInterviewerTurn, isSpeaking }: { isInterviewerTurn: boolean, isSpeaking: boolean }) => {
   return (
     <div className="relative w-48 h-48">
       <svg 
         xmlns="http://www.w3.org/2000/svg" 
         viewBox="0 0 200 200"
         className="w-full h-full"
-        style={{
-          filter: 'drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1))'
-        }}
+        style={{ filter: 'drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1))' }}
       >
         <defs>
           <clipPath id="face-circle">
@@ -47,7 +52,7 @@ export const AiInterviewer: React.FC<AiInterviewerProps> = ({ isInterviewerTurn 
             <path d="M70 120 Q100 130 130 120" fill="none" stroke="#2C3E50" stroke-width="4" stroke-linecap="round">
               <animate 
                 attributeName="d" 
-                dur="1s"
+                dur="0.5s"
                 repeatCount="indefinite"
                 values="
                   M70 120 Q100 130 130 120;
@@ -62,24 +67,7 @@ export const AiInterviewer: React.FC<AiInterviewerProps> = ({ isInterviewerTurn 
         <path d="M25 100 C 25 45, 175 45, 175 100" fill="#4A4A4A" clip-path="url(#face-circle)"/>
         
         <g id="expressions">
-          <use href="#neutral-face" opacity="1">
-            <animate 
-              attributeName="opacity"
-              dur="4s"
-              repeatCount="indefinite"
-              values="1;0;1"
-              begin="0s"
-            />
-          </use>
-          <use href="#speaking-face" opacity="0">
-            <animate 
-              attributeName="opacity"
-              dur="4s"
-              repeatCount="indefinite"
-              values="0;1;0"
-              begin="0s"
-            />
-          </use>
+          <use href={isSpeaking ? "#speaking-face" : "#neutral-face"} />
         </g>
       </svg>
       {isInterviewerTurn && (
@@ -92,214 +80,112 @@ export const AiInterviewer: React.FC<AiInterviewerProps> = ({ isInterviewerTurn 
       )}
     </div>
   )
-}
+})
 
-// Dynamic import for AceEditor
-const AceEditor = dynamic(
-  async () => {
-    const ace = await import('react-ace')
-    await import('ace-builds/src-noconflict/mode-javascript')
-    await import('ace-builds/src-noconflict/mode-python')
-    await import('ace-builds/src-noconflict/theme-monokai')
-    return ace
-  },
-  { ssr: false }
-)
+AiInterviewer.displayName = 'AiInterviewer'
+
+// Speech synthesis and recognition utility
+class SpeechHandler {
+  private synthesis: SpeechSynthesis
+  private recognition: SpeechRecognition
+  private voices: SpeechSynthesisVoice[] = []
+  
+  constructor() {
+    this.synthesis = window.speechSynthesis
+    this.recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)()
+    this.recognition.continuous = false
+    this.recognition.interimResults = false
+    this.loadVoices()
+  }
+
+  private loadVoices = () => {
+    this.voices = this.synthesis.getVoices()
+    if (this.voices.length === 0) {
+      this.synthesis.addEventListener('voiceschanged', () => {
+        this.voices = this.synthesis.getVoices()
+      })
+    }
+  }
+
+  speak = (text: string): Promise<void> => {
+    return new Promise((resolve) => {
+      const utterance = new SpeechSynthesisUtterance(text)
+      // Try to find a female voice
+      const femaleVoice = this.voices.find(voice => 
+        voice.name.toLowerCase().includes('female') || 
+        voice.name.includes('Samantha') ||
+        voice.name.includes('Karen')
+      )
+      utterance.voice = femaleVoice || this.voices[0]
+      utterance.rate = 1
+      utterance.pitch = 1
+      utterance.onend = () => resolve()
+      this.synthesis.speak(utterance)
+    })
+  }
+
+  startListening = (): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      this.recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript
+        resolve(transcript)
+      }
+      this.recognition.onerror = (event) => {
+        reject(event.error)
+      }
+      this.recognition.start()
+    })
+  }
+
+  stopListening = () => {
+    this.recognition.stop()
+  }
+}
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY_INTRV_QUES!)
 
-// Types for TypeScript support
-interface InterviewHistoryItem {
-  question: string
-  answer: string
-  timestamp: number
-  duration: number
-}
-
-interface Evaluation {
-  strengths: string[]
-  improvements: string[]
-  overallScore: number
-  feedback: string
-}
-
 export default function MockInterviewPlatform() {
   // State management
-  const [currentStep, setCurrentStep] = useState('prep')
-  const [interviewType, setInterviewType] = useState('behavioral')
-  const [programmingLanguage, setProgrammingLanguage] = useState('javascript')
+  const [currentStep, setCurrentStep] = useState<'prep' | 'interview' | 'complete'>('prep')
+  const [interviewType, setInterviewType] = useState<'behavioral' | 'technical'>('behavioral')
   const [question, setQuestion] = useState('')
   const [answer, setAnswer] = useState('')
-  const [codeAnswer, setCodeAnswer] = useState('')
   const [isInterviewerTurn, setIsInterviewerTurn] = useState(true)
-  const [videoStream, setVideoStream] = useState<MediaStream | null>(null)
-  const [audioEnabled, setAudioEnabled] = useState(true)
-  const [videoEnabled, setVideoEnabled] = useState(true)
-  const [showToast, setShowToast] = useState(false)
-  const [toastMessage, setToastMessage] = useState('')
+  const [isSpeaking, setIsSpeaking] = useState(false)
+  const [isListening, setIsListening] = useState(false)
   const [thinkingProgress, setThinkingProgress] = useState(0)
   const [interviewHistory, setInterviewHistory] = useState<InterviewHistoryItem[]>([])
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null)
   const [startTime, setStartTime] = useState<number>(0)
-  
-  const videoRef = useRef<HTMLVideoElement>(null)
+
+  const speechHandler = useRef<SpeechHandler>()
+  const [isAudioEnabled, setIsAudioEnabled] = useState(true)
+
+  // Initialize speech handler
+  useEffect(() => {
+    speechHandler.current = new SpeechHandler()
+  }, [])
 
   // Question generation using Gemini AI
-  // ... (previous imports and AI Interviewer component remain the same)
-
-// Question generation using Gemini AI
-const generateQuestion = async () => {
-  const model = genAI.getGenerativeModel({ model: "gemini-pro" })
-  
-  const previousQuestions = interviewHistory.map(item => item.question).join('\n')
-  const prompt = `Generate a challenging ${interviewType} interview question for a software engineering position.
-  ${previousQuestions ? `Previously asked questions (don't repeat these):\n${previousQuestions}` : ''}
-  ${interviewType === 'technical' ? `The candidate is using ${programmingLanguage}` : ''}
-  
-  Rules for question formatting:
-  1. Use clear, natural language without special characters or markdown
-  2. Include proper spacing and paragraphs
-  3. If providing code examples, format them naturally within the text
-  4. For technical questions, clearly separate the problem statement from examples
-  5. For behavioral questions, make them specific and contextual
-  
-  Example format for technical:
-  "Write a function that finds the longest palindromic substring in a given string.
-  
-  Input: A string containing lowercase letters
-  Output: The longest palindromic substring
-  
-  Example:
-  Input: 'babad'
-  Output: 'bab' or 'aba'
-  
-  Please explain your approach before coding."
-  
-  Example format for behavioral:
-  "Tell me about a time when you had to deal with a significant technical debt in your project. What was the situation, how did you approach it, and what was the outcome?"
-  
-  Generate a single, well-formatted question following these guidelines.`
-
-  try {
-    const result = await model.generateContent(prompt)
-    const response = await result.response
-    const formattedQuestion = response.text()
-      .replace(/\*\*/g, '')
-      .replace(/```/g, '')
-      .trim()
+  const generateQuestion = async () => {
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" })
     
-    return formattedQuestion
-  } catch (error) {
-    console.error('Error generating question:', error)
-    showNotification('Failed to generate question. Using fallback question.')
-    return interviewType === 'behavioral' 
-      ? "Tell me about a challenging project you worked on. What was your role, what challenges did you face, and how did you overcome them?"
-      : "Write a function that reverses a string without using built-in reverse methods. Please explain your approach before implementing the solution."
-  }
-}
-
-// Interview evaluation using Gemini AI
-const evaluateInterview = async () => {
-  const model = genAI.getGenerativeModel({ model: "gemini-pro" })
-  
-  const interviewDetails = interviewHistory.map(item => 
-    `Question:\n${item.question}\n\nAnswer:\n${item.answer}\n\nTime taken: ${Math.round(item.duration / 1000)} seconds`
-  ).join('\n\n---\n\n')
-
-  const prompt = `You are an experienced technical interviewer. Please evaluate this ${interviewType} interview for a software engineering position.
-
-  Interview Details:
-  ${interviewDetails}
-
-  Provide a thorough evaluation following these guidelines:
-  1. Consider technical accuracy, problem-solving approach, and communication clarity
-  2. For behavioral questions, evaluate using the STAR method
-  3. Be specific and constructive in feedback
-  4. Provide actionable improvements
-  5. Consider both technical skills and soft skills
-
-  Format your response as valid JSON with the following structure:
-  {
-    "strengths": ["strength1", "strength2", "strength3"],
-    "improvements": ["improvement1", "improvement2", "improvement3"],
-    "overallScore": <number between 1-5>,
-    "feedback": "<detailed paragraph of constructive feedback>"
-  }
-
-  Ensure the feedback is specific, actionable, and constructive.`
-
-  try {
-    const result = await model.generateContent(prompt)
-    const response = await result.response
-    let evaluation: Evaluation
+    const previousQuestions = interviewHistory.map(item => item.question).join('\n')
+    const prompt = `Generate a challenging ${interviewType} interview question for a software engineering position.
+    ${previousQuestions ? `Previously asked questions (don't repeat these):\n${previousQuestions}` : ''}
     
+    Make the question clear and concise, suitable for verbal communication.`
+
     try {
-      evaluation = JSON.parse(response.text())
-    } catch (parseError) {
-      // Fallback if JSON parsing fails
-      evaluation = {
-        strengths: ["Clear communication", "Structured approach", "Good problem-solving skills"],
-        improvements: ["Consider edge cases", "Explain reasoning more", "Practice time management"],
-        overallScore: 3,
-        feedback: "The candidate showed good potential but needs more practice with technical implementation details."
-      }
-    }
-    
-    // Validate evaluation structure and provide defaults if needed
-    evaluation = {
-      strengths: evaluation.strengths?.slice(0, 3) || ["Clear communication", "Good approach", "Technical knowledge"],
-      improvements: evaluation.improvements?.slice(0, 3) || ["Practice more", "Consider edge cases", "Improve efficiency"],
-      overallScore: Math.min(5, Math.max(1, evaluation.overallScore || 3)),
-      feedback: evaluation.feedback || "The interview showed both strengths and areas for improvement."
-    }
-    
-    setEvaluation(evaluation)
-  } catch (error) {
-    console.error('Error evaluating interview:', error)
-    showNotification('Failed to generate evaluation. Using default evaluation.')
-    
-    // Provide a default evaluation
-    setEvaluation({
-      strengths: [
-        "Demonstrated problem-solving ability",
-        "Clear communication style",
-        "Structured approach to questions"
-      ],
-      improvements: [
-        "Consider practicing more complex scenarios",
-        "Work on time management during responses",
-        "Expand on technical explanations"
-      ],
-      overallScore: 3,
-      feedback: "The candidate showed good potential with room for growth. The responses were structured and clear, though more depth could be added in technical explanations."
-    })
-  }
-}
-
-// ... (rest of the component remains the same)
-
-  // Video stream handling
-  const startVideoStream = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: videoEnabled, 
-        audio: audioEnabled 
-      })
-      setVideoStream(stream)
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-      }
+      const result = await model.generateContent(prompt)
+      const response = await result.response
+      return response.text().trim()
     } catch (error) {
-      console.error('Error accessing media devices:', error)
-      showNotification('Failed to access camera or microphone')
-    }
-  }
-
-  const stopVideoStream = () => {
-    if (videoStream) {
-      videoStream.getTracks().forEach(track => track.stop())
-      setVideoStream(null)
+      console.error('Error generating question:', error)
+      return interviewType === 'behavioral' 
+        ? "Tell me about a challenging project you worked on recently."
+        : "Explain the concept of recursion and when you would use it."
     }
   }
 
@@ -317,32 +203,53 @@ const evaluateInterview = async () => {
       clearInterval(thinkingInterval)
       setThinkingProgress(100)
       
-      setTimeout(() => {
+      setTimeout(async () => {
         setQuestion(newQuestion)
+        if (isAudioEnabled) {
+          setIsSpeaking(true)
+          await speechHandler.current?.speak(newQuestion)
+          setIsSpeaking(false)
+        }
         setIsInterviewerTurn(false)
         setThinkingProgress(0)
         setStartTime(Date.now())
+        startListening()
       }, 500)
     } catch (error) {
       clearInterval(thinkingInterval)
-      showNotification('Failed to generate question')
+      console.error('Error in interview flow:', error)
     }
   }
 
-  const handleSubmitAnswer = () => {
-    const currentAnswer = interviewType === 'behavioral' ? answer : codeAnswer
+  const startListening = async () => {
+    if (!isAudioEnabled) return
+    
+    setIsListening(true)
+    try {
+      const transcript = await speechHandler.current?.startListening()
+      if (transcript) {
+        setAnswer(transcript)
+        handleSubmitAnswer(transcript)
+      }
+    } catch (error) {
+      console.error('Error in speech recognition:', error)
+    } finally {
+      setIsListening(false)
+    }
+  }
+
+  const handleSubmitAnswer = (finalAnswer: string) => {
     const duration = Date.now() - startTime
 
     const newHistoryItem: InterviewHistoryItem = {
       question,
-      answer: currentAnswer,
+      answer: finalAnswer,
       timestamp: Date.now(),
       duration
     }
     
     setInterviewHistory([...interviewHistory, newHistoryItem])
     setAnswer('')
-    setCodeAnswer('')
     
     if (interviewHistory.length < 4) {
       handleInterviewerThinking()
@@ -352,45 +259,42 @@ const evaluateInterview = async () => {
     }
   }
 
-  // Utility functions
-  const showNotification = (message: string) => {
-    setToastMessage(message)
-    setShowToast(true)
-    setTimeout(() => setShowToast(false), 3000)
+  // Evaluation logic
+  const evaluateInterview = async () => {
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" })
+    
+    const interviewDetails = interviewHistory.map(item => 
+      `Question:\n${item.question}\n\nAnswer:\n${item.answer}\n\nTime taken: ${Math.round(item.duration / 1000)} seconds`
+    ).join('\n\n---\n\n')
+
+    const prompt = `You are an experienced technical interviewer. Please evaluate this ${interviewType} interview...`
+
+    try {
+      const result = await model.generateContent(prompt)
+      const response = await result.response
+      const evaluation = JSON.parse(response.text())
+      setEvaluation(evaluation)
+    } catch (error) {
+      console.error('Error evaluating interview:', error)
+      setEvaluation({
+        strengths: ["Clear communication", "Good approach", "Technical knowledge"],
+        improvements: ["Practice more", "Consider edge cases", "Improve efficiency"],
+        overallScore: 3,
+        feedback: "The interview showed both strengths and areas for improvement."
+      })
+    }
   }
 
-  // Effect hooks
-  useEffect(() => {
-    if (currentStep === 'interview') {
-      startVideoStream()
-      handleInterviewerThinking()
-    } else {
-      stopVideoStream()
-    }
-    return () => stopVideoStream()
-  }, [currentStep])
-
-  useEffect(() => {
-    if (videoStream) {
-      videoStream.getVideoTracks().forEach(track => {
-        track.enabled = videoEnabled
-      })
-      videoStream.getAudioTracks().forEach(track => {
-        track.enabled = audioEnabled
-      })
-    }
-  }, [videoEnabled, audioEnabled, videoStream])
-
-  // Step rendering functions
+  // Render functions for different steps
   const renderPreparationStep = () => (
     <Card className="max-w-2xl mx-auto">
       <CardHeader>
-        <CardTitle>Prepare for Your Interview</CardTitle>
-        <CardDescription>Choose your interview type and get ready!</CardDescription>
+        <CardTitle>Voice-Based Mock Interview</CardTitle>
+        <CardDescription>Prepare for your interview with our AI interviewer</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          <Select onValueChange={setInterviewType} value={interviewType}>
+          <Select onValueChange={(value: 'behavioral' | 'technical') => setInterviewType(value)} value={interviewType}>
             <SelectTrigger>
               <SelectValue placeholder="Select interview type" />
             </SelectTrigger>
@@ -400,29 +304,21 @@ const evaluateInterview = async () => {
             </SelectContent>
           </Select>
 
-          {interviewType === 'technical' && (
-            <Select onValueChange={setProgrammingLanguage} value={programmingLanguage}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select programming language" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="javascript">JavaScript</SelectItem>
-                <SelectItem value="python">Python</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
-
           <Alert>
             <AlertDescription>
-              {interviewType === 'behavioral' 
-                ? "Use the STAR method: Situation, Task, Action, Result"
-                : "Focus on explaining your thought process and consider optimization"}
+              This interview will use voice interaction. Make sure your microphone is working and you're in a quiet environment.
             </AlertDescription>
           </Alert>
         </div>
       </CardContent>
-      <CardFooter>
-        <Button onClick={() => setCurrentStep('interview')} className="w-full">
+      <CardFooter className="flex justify-between">
+        <Button 
+          variant="outline" 
+          onClick={() => setIsAudioEnabled(!isAudioEnabled)}
+        >
+          {isAudioEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+        </Button>
+        <Button onClick={() => setCurrentStep('interview')}>
           Start Interview <ChevronRight className="ml-2 h-4 w-4" />
         </Button>
       </CardFooter>
@@ -436,33 +332,11 @@ const evaluateInterview = async () => {
         <CardDescription>{interviewType} Interview - Question {interviewHistory.length + 1}/5</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div className="relative">
-            <video 
-              ref={videoRef} 
-              autoPlay 
-              muted 
-              className="w-full h-auto rounded-lg bg-gray-100" 
-            />
-            <div className="absolute bottom-2 right-2 flex space-x-2">
-              <Button variant="secondary" size="icon" onClick={() => setAudioEnabled(!audioEnabled)}>
-                {audioEnabled ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
-              </Button>
-              <Button variant="secondary" size="icon" onClick={() => setVideoEnabled(!videoEnabled)}>
-                {videoEnabled ? <Camera className="h-4 w-4" /> : <CameraOff className="h-4 w-4" />}
-              </Button>
-            </div>
-          </div>
-          <div className="flex flex-col items-center justify-center bg-gray-100 rounded-lg p-4">
-            <AiInterviewer isInterviewerTurn={isInterviewerTurn} />
-            <Progress value={(interviewHistory.length / 5) * 100} className="w-full mt-4" />
-            <p className="text-sm text-gray-600 mt-2">Progress: {interviewHistory.length}/5 questions</p>
-            </div>
-        </div>
-
-        <div className="space-y-4">
-          <div className="flex space-x-4">
-            <div className="flex-1">
+        <div className="flex flex-col items-center space-y-6">
+          <AiInterviewer isInterviewerTurn={isInterviewerTurn} isSpeaking={isSpeaking} />
+          
+          <div className="w-full space-y-4">
+            <div className="bg-gray-50 p-4 rounded-lg">
               <p className="font-semibold">{question}</p>
               {isInterviewerTurn && (
                 <div className="flex items-center mt-2">
@@ -471,33 +345,26 @@ const evaluateInterview = async () => {
                 </div>
               )}
             </div>
-          </div>
 
-          {interviewType === 'behavioral' ? (
-            <Textarea
-              placeholder="Type your answer here..."
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-              className="w-full min-h-[200px]"
-              disabled={isInterviewerTurn}
-            />
-          ) : (
-            <AceEditor
-              mode={programmingLanguage}
-              theme="monokai"
-              onChange={setCodeAnswer}
-              value={codeAnswer}
-              name="code_editor"
-              editorProps={{ $blockScrolling: true }}
-              setOptions={{
-                enableBasicAutocompletion: true,
-                enableLiveAutocompletion: true,
-                showLineNumbers: true,
-                tabSize: 2,
-              }}
-              style={{ width: '100%', height: '300px', borderRadius: '0.5rem' }}
-            />
-          )}
+            {!isInterviewerTurn && (
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="font-medium">Your Answer:</p>
+                  {isListening ? (
+                    <Mic className="h-4 w-4 text-red-500 animate-pulse" />
+                  ) : (
+                    <MicOff className="h-4 w-4 text-gray-500" />
+                  )}
+                </div>
+                <p>{answer}</p>
+              </div>
+            )}
+          </div>
+          
+          <Progress 
+            value={(interviewHistory.length / 5) * 100} 
+            className="w-full"
+          />
         </div>
       </CardContent>
       <CardFooter className="flex justify-between">
@@ -505,134 +372,119 @@ const evaluateInterview = async () => {
           End Interview
         </Button>
         <Button 
-          onClick={handleSubmitAnswer} 
-          disabled={isInterviewerTurn || (!answer && !codeAnswer)}
+          onClick={() => startListening()}
+          disabled={isInterviewerTurn || isListening}
+        ></Button>
+        <Button 
+          onClick={() => startListening()}
+          disabled={isInterviewerTurn || isListening}
         >
-          Submit Answer
+          {isListening ? 'Listening...' : 'Start Speaking'}
         </Button>
       </CardFooter>
     </Card>
   )
 
   const renderCompletionStep = () => (
-    <Card className="max-w-4xl mx-auto">
+    <Card className="w-full max-w-4xl mx-auto">
       <CardHeader>
         <CardTitle>Interview Complete</CardTitle>
         <CardDescription>Here's your performance evaluation</CardDescription>
       </CardHeader>
       <CardContent>
-        {evaluation ? (
-          <div className="space-y-6">
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="text-lg font-semibold mb-2">Overall Score: {evaluation.overallScore}/5</h3>
-              <Progress value={evaluation.overallScore * 20} className="mb-4" />
-              <p className="text-gray-700">{evaluation.feedback}</p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Strengths</CardTitle>
-                </CardHeader>
-                <CardContent>
+        <div className="space-y-6">
+          {evaluation ? (
+            <>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold mb-2">Strengths</h3>
                   <ul className="list-disc pl-5">
                     {evaluation.strengths.map((strength, index) => (
-                      <li key={index} className="text-green-600">{strength}</li>
+                      <li key={index}>{strength}</li>
                     ))}
                   </ul>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Areas for Improvement</CardTitle>
-                </CardHeader>
-                <CardContent>
+                </div>
+                
+                <div>
+                  <h3 className="font-semibold mb-2">Areas for Improvement</h3>
                   <ul className="list-disc pl-5">
                     {evaluation.improvements.map((improvement, index) => (
-                      <li key={index} className="text-amber-600">{improvement}</li>
+                      <li key={index}>{improvement}</li>
                     ))}
                   </ul>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Interview History</h3>
-              {interviewHistory.map((item, index) => (
-                <div key={index} className="mb-4 p-4 bg-gray-50 rounded-lg">
-                  <p className="font-medium">Q: {item.question}</p>
-                  <p className="mt-2">A: {item.answer}</p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Time taken: {Math.round(item.duration / 1000)} seconds
-                  </p>
                 </div>
-              ))}
+
+                <div>
+                  <h3 className="font-semibold mb-2">Overall Score</h3>
+                  <Progress value={evaluation.overallScore * 20} className="w-full" />
+                  <p className="mt-2 text-sm text-gray-600">{evaluation.overallScore}/5</p>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold mb-2">Detailed Feedback</h3>
+                  <p className="text-gray-700">{evaluation.feedback}</p>
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <h3 className="font-semibold mb-4">Interview History</h3>
+                <div className="space-y-4">
+                  {interviewHistory.map((item, index) => (
+                    <div key={index} className="bg-gray-50 p-4 rounded-lg">
+                      <p className="font-medium">Question {index + 1}:</p>
+                      <p className="mb-2">{item.question}</p>
+                      <p className="font-medium">Your Answer:</p>
+                      <p>{item.answer}</p>
+                      <p className="text-sm text-gray-500 mt-2">
+                        Time taken: {Math.round(item.duration / 1000)} seconds
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+              <span className="ml-2">Evaluating your interview...</span>
             </div>
-          </div>
-        ) : (
-          <div className="flex items-center justify-center p-8">
-            <Loader2 className="h-8 w-8 animate-spin" />
-            <p className="ml-2">Generating evaluation...</p>
-          </div>
-        )}
+          )}
+        </div>
       </CardContent>
       <CardFooter>
-        <div className="w-full space-y-4">
-          <Button 
-            onClick={() => {
-              setCurrentStep('prep')
-              setInterviewHistory([])
-              setEvaluation(null)
-              setQuestion('')
-              setAnswer('')
-              setCodeAnswer('')
-            }} 
-            className="w-full"
-          >
-            Start New Interview
-          </Button>
-          <Button 
-            variant="outline"
-            onClick={() => {
-              const data = {
-                type: interviewType,
-                history: interviewHistory,
-                evaluation: evaluation
-              }
-              const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-              const url = URL.createObjectURL(blob)
-              const a = document.createElement('a')
-              a.href = url
-              a.download = `interview-results-${new Date().toISOString().split('T')[0]}.json`
-              document.body.appendChild(a)
-              a.click()
-              document.body.removeChild(a)
-              URL.revokeObjectURL(url)
-            }}
-            className="w-full"
-          >
-            Export Results
-          </Button>
-        </div>
+        <Button 
+          onClick={() => {
+            setCurrentStep('prep')
+            setInterviewHistory([])
+            setEvaluation(null)
+            setQuestion('')
+            setAnswer('')
+            setIsInterviewerTurn(true)
+          }}
+          className="w-full"
+        >
+          Start New Interview
+        </Button>
       </CardFooter>
     </Card>
   )
 
-  return (
-    <div className="container mx-auto py-8 px-4">
-      <ToastProvider>
-        {showToast && (
-          <Toast>
-            <p>{toastMessage}</p>
-          </Toast>
-        )}
-        <ToastViewport />
-      </ToastProvider>
+  // Start the interview when entering the interview step
+  useEffect(() => {
+    if (currentStep === 'interview' && interviewHistory.length === 0) {
+      handleInterviewerThinking()
+    }
+  }, [currentStep])
 
-      {currentStep === 'prep' && renderPreparationStep()}
-      {currentStep === 'interview' && renderInterviewStep()}
-      {currentStep === 'complete' && renderCompletionStep()}
-    </div>
+  // Main render function
+  return (
+    <ToastProvider>
+      <div className="container mx-auto p-4 min-h-screen flex items-center justify-center">
+        {currentStep === 'prep' && renderPreparationStep()}
+        {currentStep === 'interview' && renderInterviewStep()}
+        {currentStep === 'complete' && renderCompletionStep()}
+      </div>
+      <ToastViewport />
+    </ToastProvider>
   )
-} 
+}
