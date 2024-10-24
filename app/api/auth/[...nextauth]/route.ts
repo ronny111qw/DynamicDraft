@@ -1,30 +1,29 @@
 // pages/api/auth/[...nextauth].js
-import { Session } from "inspector/promises";
 import NextAuth from "next-auth";
-import GithubProvider from "next-auth/providers/github";
-import GoogleProvider from 'next-auth/providers/google'
+import GoogleProvider from 'next-auth/providers/google';
+import { PrismaAdapter } from "@auth/prisma-adapter";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
 
 export const authOptions = {
+    adapter: PrismaAdapter(prisma),  // Add this line
     providers: [
-       
         GoogleProvider({
             clientId: process.env.GOOGLE_CLIENT_ID!,
             clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-          }),
+        }),
     ],
-
     session: {
-        jwt: true,
-        maxAge: 1 * 60,
-
+        strategy: "jwt",  // Changed from jwt: true to match newer NextAuth syntax
+        maxAge:  30 * 24 * 60 * 60,
     },
     callbacks: {
         async redirect({ url, baseUrl }) {
-            // Redirect to the desired page after sign-in
-            return baseUrl + '/dashboard'; // Change '/dashboard' to your desired path
+            return baseUrl + '/dashboard';
         },
     },
-    secret: process.env.NEXTAUTH_SECRET, // Add the secret here
+    secret: process.env.NEXTAUTH_SECRET,
 };
 
 export const handler = NextAuth(authOptions);
