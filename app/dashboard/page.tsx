@@ -1,13 +1,37 @@
-"use client"
-
-import React from 'react'
-import Link from 'next/link'
-import { FileText, List, Plus, Settings, Search, Bell, User, ChevronRight, Mail, Phone, BarChart, Star, Edit, Apple, UserCheck, Folder, CheckCircle } from 'lucide-react'
+// app/dashboard/page.tsx
+'use client'; // Ensure this is a client component
+import { signOut, useSession } from 'next-auth/react';
+import { Menu, Transition } from '@headlessui/react'
 import Image from 'next/image'
-import { Sparkles } from 'lucide-react'
-
+import { UserCircle } from 'lucide-react'
+import React, { useEffect } from 'react';
+import Link from 'next/link';
+import { CheckCircle, ChevronRight, Edit, FileText, Mail, Plus, Sparkles, Star, UserCheck } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import CheckSignInStatus from "../CheckSignInStatus";
 
 export default function Dashboard() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (status === 'loading') return;
+
+    if (!session) {
+      router.push('/login');
+    }
+  }, [session, status, router]);
+
+  // Show loading state while checking session
+  if (status === 'loading') {
+    return <div>Loading...</div>;
+  }
+
+  // Only render dashboard content if we have a session
+  if (!session) {
+    return null;
+  }
+  
   return (
     <div className="bg-black min-h-screen text-white font-sans">
       <div className="absolute top-0 left-0 w-full h-full bg-[url('/noise.png')] opacity-5 pointer-events-none"></div>
@@ -26,6 +50,66 @@ export default function Dashboard() {
                 <Link href="/choose-template" className="text-gray-300 hover:text-white">Templates</Link>
                 <Link href="/pricing" className="text-gray-300 hover:text-white">Pricing</Link>
                 <button className="bg-gradient-to-r from-green-400 to-blue-500 text-black px-4 py-2 rounded-full text-sm font-medium hover:from-green-500 hover:to-blue-600 transition-all duration-300">Upgrade</button>
+
+                <Menu as="div" className="relative inline-block text-left">
+                <div>
+                <Menu.Button className="flex items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    {session.user.image ? (
+                      <Image
+                        src={session.user.image}
+                        alt="Profile"
+                        width={32}
+                        height={32}
+                        className="rounded-full"
+                      />
+                    ) : (
+                      <UserCircle className="w-8 h-8 text-gray-400" />
+                    )}
+                    
+                  </Menu.Button>
+                </div>
+                <Transition
+                  as={React.Fragment}
+                  enter="transition ease-out duration-100"
+                  enterFrom="transform opacity-0 scale-95"
+                  enterTo="transform opacity-100 scale-100"
+                  leave="transition ease-in duration-75"
+                  leaveFrom="transform opacity-100 scale-100"
+                  leaveTo="transform opacity-0 scale-95"
+                >
+                  <Menu.Items className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 focus:outline-none">
+                    <div className="py-1">
+                      <Menu.Item>
+                        {({ active }) => (
+                          <Link
+                            href="/profile"
+                            className={`${
+                              active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
+                            } block px-4 py-2 text-sm`}
+                          >
+                            Profile
+                          </Link>
+                        )}
+                      </Menu.Item>
+                    </div>
+                    <div className="py-1">
+                      <Menu.Item>
+                        {({ active }) => (
+                          <button
+                            onClick={() => signOut({ redirect: true, callbackUrl: "/" })}
+                            className={`${
+                              active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
+                            } block w-full text-left px-4 py-2 text-sm`}
+                          >
+                            Sign out
+                          </button>
+                        )}
+                      </Menu.Item>
+                    </div>
+                  </Menu.Items>
+                </Transition>
+              </Menu>
+
               </div>
             </div>
           </div>
@@ -36,6 +120,10 @@ export default function Dashboard() {
   <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-green-400 to-blue-500 text-transparent bg-clip-text leading-[1.1] py-3 -mt-2">
     Driving careers with AI.
   </h1>
+  <div>
+      <h1>Welcome to My App</h1>
+      <CheckSignInStatus />
+    </div>
   <p className="text-xl text-gray-400 max-w-2xl mx-auto">
     We craft next-generation resumes and portfolios for forward-thinking professionals, powered by cutting-edge AI technology.
   </p>
