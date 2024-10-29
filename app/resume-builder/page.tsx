@@ -3,13 +3,10 @@ import React, { useState, useCallback, useEffect, useRef } from "react"
 import debounce from 'lodash/debounce'
 import Link from 'next/link'
 import JobMatcher from "@/components/JobMatcher"
-import Image from 'next/image'
 import { Save, Sparkles } from "lucide-react"
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import FontSelector, { fonts } from '@/app/fontSelector' 
-import { useSearchParams } from 'next/navigation';
-import { templates } from '../templates/templateData';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { checkGrammar, isResumeSpecificTerm } from '@/app/utils/grammarCheck';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
@@ -25,11 +22,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
-import { FileText, Download, Trash2, PlusCircle, GripVertical, Moon, Sun, Loader2, Check } from "lucide-react"
+import { Download,GripVertical, Moon, Sun, Loader2 } from "lucide-react"
 import dynamic from 'next/dynamic';
 import { toast } from "@/components/ui/use-toast"
-import { update } from "lodash"
 
 
  
@@ -195,7 +190,58 @@ const ResumeBuilder = () => {
   const [resumeName, setResumeName] = useState("Untitled Resume")
   const [isSaving, setIsSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false)
 
+  const handleSave = async () => {
+    setIsSaving(true)
+    try {
+      console.log('Saving resume with data:', {
+        content: {
+          ...resumeData,
+          name: resumeName
+        },
+        template: "default"
+      });
+
+      const response = await fetch('/api/resumes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: {
+            ...resumeData,
+            name: resumeName
+          },
+          template: "default"
+        }),
+      })
+
+      console.log('Response status:', response.status);
+      const responseData = await response.json();
+      console.log('Response data:', responseData);
+
+      if (!response.ok) {
+        throw new Error(responseData.error || 'Failed to save resume')
+      }
+
+      setLastSaved(new Date())
+      toast({
+        title: "Success",
+        description: "Your resume has been saved successfully.",
+      })
+    } catch (error) {
+      console.error('Error saving resume:', error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save resume. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSaving(false)
+      setIsSaveDialogOpen(false)
+    }
+  }
 
   useEffect(() => {
     setIsClient(true);
@@ -1004,44 +1050,7 @@ const ResumeBuilder = () => {
   )
  
 
-  const saveResume = async () => {
-    setIsSaving(true)
-    
-    try {
-      // Simulate an async operation (e.g., API call)
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
-      const newResume = {
-        id: Date.now().toString(),
-        name: resumeName,
-        content: resumeData,
-        lastModified: new Date()
-      }
-
-      let savedResumes = JSON.parse(localStorage.getItem('savedResumes') || '[]')
-      savedResumes.push(newResume)
-      localStorage.setItem('savedResumes', JSON.stringify(savedResumes))
-
-      toast({
-        title: "Resume Saved",
-        description: `${resumeName} has been saved successfully.`,
-        duration: 3000,
-      })
-
-      // Optional: You can update some state here to reflect the save
-      // For example, you might want to update a "lastSaved" timestamp
-    } catch (error) {
-      console.error('Error saving resume:', error)
-      toast({
-        title: "Save Failed",
-        description: "There was an error saving your resume. Please try again.",
-        variant: "destructive",
-        duration: 5000,
-      })
-    } finally {
-      setIsSaving(false)
-    }
-  }
+  
 
   return (
     <TooltipProvider>
@@ -1070,6 +1079,37 @@ const ResumeBuilder = () => {
               >
                 Reset to Default
               </Button>
+              <Button variant="outline" size="icon" onClick={() => setIsSaveDialogOpen(true)}>
+              <Save className="h-[1.2rem] w-[1.2rem]" />
+              <span className="sr-only">Save resume</span>
+            </Button>
+            <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save Resume</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              placeholder="Enter resume name"
+              value={resumeName}
+              onChange={(e) => setResumeName(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setIsSaveDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSave} disabled={isSaving || !resumeName.trim()}>
+              {isSaving ? (
+                <>
+                  <Loader2 className="animate-spin h-5 w-5 mr-3" />
+                  Saving...
+                </>
+              ) : (
+                'Save'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
                   <TooltipContent>
                     <p>Toggle theme</p>
                   </TooltipContent>
@@ -1177,31 +1217,6 @@ const ResumeBuilder = () => {
           </div>
         </main>
         {renderSuggestionsModal()}
-        <div className="flex items-center space-x-2 mb-4">
-          <Input 
-            value={resumeName}
-            onChange={(e) => setResumeName(e.target.value)}
-            placeholder="Resume Name"
-            className="flex-grow"
-          />
-          <Button 
-            onClick={saveResume} 
-            disabled={isSaving}
-            className={`w-24 ${isSaving ? 'bg-green-500' : 'bg-blue-500'} hover:bg-blue-600 text-white`}
-          >
-            {isSaving ? (
-              <Check className="w-4 h-4 mr-2" />
-            ) : (
-              <Save className="w-4 h-4 mr-2" />
-            )}
-            {isSaving ? 'Saved' : 'Save'}
-          </Button>
-        </div>
-        {lastSaved && (
-          <p className="text-sm text-gray-500">
-            Last saved: {lastSaved.toLocaleString()}
-          </p>
-        )}
       </div>
     </TooltipProvider>
   );
