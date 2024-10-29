@@ -1,10 +1,17 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
+
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "@/components/ui/collapsible";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
-import { Loader2, Clipboard, CheckCircle2, RefreshCw, Sparkles, Save, Download, Plus, X, Send, Play, Pause, StopCircle, Mic, MicOff, BarChart, Share2, Book, Video, FileText, Search, Menu, Home, Settings, Calendar, Building, GraduationCap } from 'lucide-react'
+import { Loader2, Clipboard, CheckCircle2, RefreshCw, Sparkles, Save, Download, Plus, X, Send, Play, Pause, StopCircle, Mic, MicOff, BarChart, Share2, Book, Video, FileText, Search, Menu, Home, Settings, Calendar, Building, GraduationCap, ChevronDown } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
@@ -20,6 +27,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { GoogleGenerativeAI } from "@google/generative-ai"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import InterviewScheduler from '@/InterviewSchedulerPlanner'
+import { motion } from 'framer-motion'
 
 
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY_INTRV_QUES!)
@@ -54,6 +62,22 @@ type Resource = {
   description: string
   url: string
   type: 'article' | 'video' | 'book'
+}
+
+interface LearningResource {
+  title: string;
+  url: string;
+  type: 'documentation' | 'course' | 'video' | 'book' | 'article';
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+}
+
+interface LearningPathItem {
+  skill: string;
+  explanation: string;
+  importance: 'high' | 'medium' | 'low';
+  timeToLearn: string;
+  resources: LearningResource[];
+  practiceProjects?: string[];
 }
 
 const defaultQuestionTypes: QuestionType[] = [
@@ -677,7 +701,7 @@ export default function EnhancedQuestionGenerator() {
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       
       const prompt = `
-        Based on the following resume and job description, generate a personalized learning path.
+        As a current tech industry expert and technical mentor in 2024, create a detailed learning path based on this resume and job description.
         
         Resume:
         ${resume}
@@ -685,25 +709,78 @@ export default function EnhancedQuestionGenerator() {
         Job Description:
         ${jobDescription}
         
-       Please analyze the candidate's resume and job description and provide 5 specific skills or areas of knowledge the candidate should focus on improving. For each skill, also provide:
-
-- A brief explanation of why it's important for the specific job role.
-- Recommended resources for the candidate to improve in that area (e.g., online courses, books, articles, or tools).
-
-Format your response as a JSON array of objects, where each object has 'skill', 'explanation', and 'resources' properties.
-
-Example:
-[
-  {
-    "skill": "React.js",
-    "explanation": "React is crucial for building interactive UI components for this role",
-    "resources": [
-      "Official React documentation: https://reactjs.org/docs/getting-started.html",
-      "FreeCodeCamp's React course: https://www.freecodecamp.org/learn/front-end-development-libraries/react/"
-    ]
-  } 
-]
-
+        Create a modern, practical learning path with the 5 most critical skills/areas the candidate needs to focus on.
+        For each skill, provide:
+        1. Clear explanation of why this skill is crucial for the role in today's tech landscape
+        2. Realistic time estimate to achieve working proficiency
+        3. Priority level (high/medium/low)
+        4. Only include currently available (2024) learning resources including:
+           - Official, actively maintained documentation
+           - Popular online learning platforms (Udemy, Coursera, etc.)
+           - Recent YouTube videos/channels (2023-2024)
+           - Current GitHub repositories and communities
+           - Active Discord/Slack communities for learning
+        5. Practical, modern project ideas that align with current industry practices
+        
+        Important resource guidelines:
+        - Verify all URLs are from well-known, active platforms
+        - Prefer free resources but include paid options if they provide significant value
+        - Include mix of text, video, and interactive content
+        - Focus on resources that are regularly updated
+        - Include active community resources for support
+        
+        Format the response as a JSON array matching this structure:
+        [
+          {
+            "skill": "Skill Name",
+            "explanation": "Detailed explanation focusing on 2024 industry relevance",
+            "importance": "high|medium|low",
+            "timeToLearn": "Realistic time estimate",
+            "resources": [
+              {
+                "title": "Resource name (include year if applicable)",
+                "url": "Active, verified URL",
+                "type": "documentation|course|video|community|github",
+                "difficulty": "beginner|intermediate|advanced",
+                "cost": "free|paid|freemium",
+                "platform": "Platform name (YouTube, Udemy, etc.)"
+              }
+            ],
+            "practiceProjects": [
+              {
+                "name": "Modern project idea",
+                "description": "Brief project description",
+                "estimatedTime": "Time estimate",
+                "techStack": ["relevant", "technologies"]
+              }
+            ],
+            "communities": [
+              {
+                "name": "Community name",
+                "platform": "Discord|Slack|Reddit",
+                "url": "Invite/join URL"
+              }
+            ]
+          }
+        ]
+  
+        Ensure all resources are:
+        1. Currently accessible (2024)
+        2. From reputable sources
+        3. Actively maintained
+        4. Relevant to current industry practices
+        5. Include a mix of learning styles (video, text, interactive)
+        
+        For YouTube content, prefer channels with:
+        - Regular uploads
+        - High subscriber count
+        - Recent activity (2023-2024)
+        - Quality educational content
+        
+        For documentation and courses:
+        - Prefer official sources
+        - Include version/last updated date when available
+        - Focus on current industry standards
       `;
   
       const result = await model.generateContent(prompt);
@@ -712,54 +789,53 @@ Example:
       
       console.log("Raw AI Response:", text);
       
-      // Clean the response to remove unwanted characters
+      // Clean and parse the response
       const cleanedText = text
-        .replace(/```json|```/g, '') // Remove code block markers
-        .trim(); // Trim whitespace
+        .replace(/```json|```/g, '')
+        .trim();
   
-      let parsedResponse;
       try {
-        parsedResponse = JSON.parse(cleanedText);
+        const parsedResponse = JSON.parse(cleanedText);
         if (!Array.isArray(parsedResponse)) {
           throw new Error('Response is not an array');
         }
+        
+        // Validate resources
+        const validatedResponse = parsedResponse.map(item => ({
+          ...item,
+          resources: (item.resources || []).filter(resource => {
+            // Basic URL validation
+            try {
+              new URL(resource.url);
+              return true;
+            } catch {
+              console.log(`Filtered out invalid resource URL: ${resource.url}`);
+              return false;
+            }
+          })
+        }));
+  
+        setLearningPath(validatedResponse);
       } catch (parseError) {
         console.error("JSON parsing error:", parseError);
-        // Fallback: Extract skills from text
-        const skills = cleanedText.split('\n')
-          .filter(line => line.trim().startsWith('-') || line.trim().startsWith('*'))
-          .map(line => ({
-            skill: line.trim().replace(/^[-*]\s*/, '').split(':')[0],
-            explanation: line.split(':')[1]?.trim() || 'Important for the role'
-          }))
-          .filter(item => item.skill)
-          .slice(0, 5);
-        
-        if (skills.length > 0) {
-          parsedResponse = skills;
-        } else {
-          throw new Error('Could not parse response');
-        }
+        throw new Error('Failed to parse AI response');
       }
   
-      setLearningPath(parsedResponse);
-      
       toast({
         title: "Learning Path Generated",
-        description: "Your personalized learning path is now available.",
+        description: "Your personalized learning path is ready with current resources!",
       });
     } catch (error) {
       console.error("Learning path generation error:", error);
       toast({
-        title: "Error Generating Learning Path",
-        description: "There was an error creating your learning path. Please try again.",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to generate learning path",
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
   };
-
 
 
 
@@ -1315,51 +1391,180 @@ return (
               </Card>
             )}
 
-            {activeTab === 'learning-path' && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-2xl">Personalized Learning Path</CardTitle>
-                  <CardDescription>
-                    Focus areas based on your resume and job description
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {learningPath.length > 0 ? (
-                    <ul className="list-disc list-inside space-y-2">
-                      {learningPath.map((item, index) => (
-                        <li key={index}>
-                          <strong>{item.skill}</strong>: {item.explanation} <br />
-                          <em>Resources: {item.improvementSuggestions}</em>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-gray-600">
-                      No learning path generated yet. Click the button below to create your personalized learning path.
-                    </p>
-                  )}
-                </CardContent>
-                <CardFooter>
-                  <Button
-                    onClick={generateLearningPath}
-                    className="w-full bg-gradient-to-r from-green-400 to-blue-500 text-white hover:from-green-500 hover:to-blue-600"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Generating Learning Path...
-                      </>
-                    ) : (
-                      <>
-                        <GraduationCap className="mr-2 h-4 w-4" />
-                        Generate Learning Path
-                      </>
-                    )}
+{activeTab === 'learning-path' && (
+  <Card>
+    <CardHeader>
+      <CardTitle className="text-2xl">Personalized Learning Path</CardTitle>
+      <CardDescription>
+        Tailored recommendations based on your profile and job requirements
+      </CardDescription>
+    </CardHeader>
+    <CardContent>
+      {learningPath.length > 0 ? (
+        <div className="space-y-6">
+          {learningPath.map((item, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              className="p-4 rounded-lg border border-gray-200 dark:border-gray-700"
+            >
+              {/* Skill Header */}
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xl font-semibold">{item.skill}</h3>
+                <Badge>
+                  {item.importance || 'medium'} priority
+                </Badge>
+              </div>
+              
+              {/* Explanation */}
+              <p className="text-gray-600 dark:text-gray-300 mb-2">
+                {item.explanation}
+              </p>
+
+              {/* Time to Learn */}
+              <p className="text-sm text-gray-500 mb-4">
+                Estimated Time: {item.timeToLearn}
+              </p>
+
+              {/* Resources Collapsible */}
+              <Collapsible className="w-full mb-4">
+                <CollapsibleTrigger asChild>
+                  <Button variant="outline" className="w-full flex items-center justify-between">
+                    <span>Learning Resources</span>
+                    <ChevronDown className="h-4 w-4" />
                   </Button>
-                </CardFooter>
-              </Card>
-            )}
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2">
+                  <div className="space-y-2 pl-4">
+                    {item.resources?.map((resource, idx) => (
+                      <div key={idx} className="flex items-center justify-between py-2">
+                        <div className="flex items-center space-x-2">
+                          <a 
+                            href={resource.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-500 hover:underline"
+                          >
+                            {resource.title}
+                          </a>
+                          <Badge variant="outline" className="text-xs">
+                            {resource.type}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Badge variant="secondary" className="text-xs">
+                            {resource.difficulty}
+                          </Badge>
+                          <Badge variant={resource.cost === 'free' ? 'success' : 'default'} className="text-xs">
+                            {resource.cost}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+
+              {/* Practice Projects Collapsible */}
+              {item.practiceProjects && item.practiceProjects.length > 0 && (
+                <Collapsible className="w-full mb-4">
+                  <CollapsibleTrigger asChild>
+                    <Button variant="outline" className="w-full flex items-center justify-between">
+                      <span>Practice Projects</span>
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-2">
+                    <div className="space-y-4 pl-4">
+                      {item.practiceProjects.map((project, idx) => (
+                        <div key={idx} className="border-l-2 border-gray-200 pl-4 py-2">
+                          <h4 className="font-medium">{project.name}</h4>
+                          <p className="text-sm text-gray-600 dark:text-gray-300">
+                            {project.description}
+                          </p>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {project.techStack.map((tech, techIdx) => (
+                              <Badge key={techIdx} variant="outline" className="text-xs">
+                                {tech}
+                              </Badge>
+                            ))}
+                          </div>
+                          <p className="text-sm text-gray-500 mt-2">
+                            Estimated Time: {project.estimatedTime}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+
+              {/* Communities Section */}
+              {item.communities && item.communities.length > 0 && (
+                <Collapsible className="w-full">
+                  <CollapsibleTrigger asChild>
+                    <Button variant="outline" className="w-full flex items-center justify-between">
+                      <span>Learning Communities</span>
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-2">
+                    <div className="space-y-2 pl-4">
+                      {item.communities.map((community, idx) => (
+                        <div key={idx} className="flex items-center justify-between py-2">
+                          <div className="flex items-center space-x-2">
+                            <a 
+                              href={community.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-500 hover:underline"
+                            >
+                              {community.name}
+                            </a>
+                            <Badge variant="outline" className="text-xs">
+                              {community.platform}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+            </motion.div>
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          icon={<GraduationCap className="h-12 w-12 text-gray-400" />}
+          title="No Learning Path Generated"
+          description="Generate your personalized learning path to get started"
+        />
+      )}
+    </CardContent>
+    <CardFooter>
+      <Button
+        onClick={generateLearningPath}
+        className="w-full bg-gradient-to-r from-green-400 to-blue-500 text-white hover:from-green-500 hover:to-blue-600"
+        disabled={isLoading}
+      >
+        {isLoading ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Generating Learning Path...
+          </>
+        ) : (
+          <>
+            <GraduationCap className="mr-2 h-4 w-4" />
+            Generate Learning Path
+          </>
+        )}
+      </Button>
+    </CardFooter>
+  </Card>
+)}
           </div>
         </main>
       </div>
