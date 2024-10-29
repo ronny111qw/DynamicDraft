@@ -25,6 +25,14 @@ interface Evaluation {
   feedback: string
 }
 
+// Add new interface for interview settings
+interface InterviewSettings {
+  duration: number;  // minutes
+  questionCount: number;
+  difficulty: 'entry' | 'mid' | 'senior';
+  role: string;
+}
+
 // AI Interviewer Component with Speaking Animation
 const AiInterviewer = React.memo(({ isInterviewerTurn, isSpeaking }: { isInterviewerTurn: boolean, isSpeaking: boolean }) => {
   return (
@@ -110,15 +118,16 @@ class SpeechHandler {
   speak = (text: string): Promise<void> => {
     return new Promise((resolve) => {
       const utterance = new SpeechSynthesisUtterance(text)
-      // Try to find a female voice
-      const femaleVoice = this.voices.find(voice => 
-        voice.name.toLowerCase().includes('female') || 
-        voice.name.includes('Samantha') ||
-        voice.name.includes('Karen')
+      // Enhanced voice selection
+      const preferredVoices = this.voices.filter(voice => 
+        (voice.name.toLowerCase().includes('female') || 
+         voice.name.includes('Samantha') ||
+         voice.name.includes('Karen')) &&
+        voice.lang.startsWith('en-')  // Ensure English voice
       )
-      utterance.voice = femaleVoice || this.voices[0]
-      utterance.rate = 1
-      utterance.pitch = 1
+      utterance.voice = preferredVoices[0] || this.voices[0]
+      utterance.rate = 0.9  // Slightly slower for clarity
+      utterance.pitch = 1.1  // Slightly higher pitch
       utterance.onend = () => resolve()
       this.synthesis.speak(utterance)
     })
@@ -162,6 +171,16 @@ export default function MockInterviewPlatform() {
   const speechHandler = useRef<SpeechHandler>()
   const [isAudioEnabled, setIsAudioEnabled] = useState(true)
 
+  // Add new states
+  const [settings, setSettings] = useState<InterviewSettings>({
+    duration: 30,
+    questionCount: 5,
+    difficulty: 'mid',
+    role: 'Full Stack Developer'
+  })
+  const [timeRemaining, setTimeRemaining] = useState<number>(0)
+  const [isThinking, setIsThinking] = useState(false)
+
   // Initialize speech handler
   useEffect(() => {
     speechHandler.current = new SpeechHandler()
@@ -171,11 +190,21 @@ export default function MockInterviewPlatform() {
   const generateQuestion = async () => {
     const model = genAI.getGenerativeModel({ model: "gemini-pro" })
     
-    const previousQuestions = interviewHistory.map(item => item.question).join('\n')
-    const prompt = `Generate a challenging ${interviewType} interview question for a software engineering position.
-    ${previousQuestions ? `Previously asked questions (don't repeat these):\n${previousQuestions}` : ''}
+    const prompt = `As an experienced ${settings.difficulty}-level technical interviewer, generate a ${interviewType} interview question for a ${settings.role} position.
     
-    Make the question clear and concise, suitable for verbal communication.`
+    Context:
+    - Previous questions: ${interviewHistory.map(item => item.question).join('; ')}
+    - Candidate's performance: ${interviewHistory.length > 0 ? 'Based on previous answers, adjust difficulty accordingly' : 'Initial question'}
+    - Interview stage: Question ${interviewHistory.length + 1} of ${settings.questionCount}
+    
+    Requirements:
+    1. Make the question challenging but appropriate for the level
+    2. Keep it conversational and clear
+    3. Don't repeat previous questions
+    4. For behavioral questions, focus on real-world scenarios
+    5. For technical questions, focus on practical problem-solving
+    
+    Response format: Just the question, no additional text.`
 
     try {
       const result = await model.generateContent(prompt)
@@ -183,10 +212,16 @@ export default function MockInterviewPlatform() {
       return response.text().trim()
     } catch (error) {
       console.error('Error generating question:', error)
-      return interviewType === 'behavioral' 
-        ? "Tell me about a challenging project you worked on recently."
-        : "Explain the concept of recursion and when you would use it."
+      return getBackupQuestion(interviewType, settings.difficulty)
     }
+  }
+
+  // Add interviewer thinking simulation
+  const simulateThinking = async () => {
+    setIsThinking(true)
+    const thinkingTime = Math.random() * 2000 + 1000 // 1-3 seconds
+    await new Promise(resolve => setTimeout(resolve, thinkingTime))
+    setIsThinking(false)
   }
 
   // Interview flow handlers
@@ -194,29 +229,27 @@ export default function MockInterviewPlatform() {
     setIsInterviewerTurn(true)
     setThinkingProgress(0)
     
-    const thinkingInterval = setInterval(() => {
-      setThinkingProgress(prev => Math.min(prev + 10, 90))
-    }, 200)
-
+    await simulateThinking()
+    
     try {
       const newQuestion = await generateQuestion()
-      clearInterval(thinkingInterval)
       setThinkingProgress(100)
       
-      setTimeout(async () => {
-        setQuestion(newQuestion)
-        if (isAudioEnabled) {
-          setIsSpeaking(true)
-          await speechHandler.current?.speak(newQuestion)
-          setIsSpeaking(false)
-        }
-        setIsInterviewerTurn(false)
-        setThinkingProgress(0)
-        setStartTime(Date.now())
-        startListening()
-      }, 500)
+      // Add slight delay before speaking
+      await new Promise(resolve => setTimeout(resolve, 500))
+      setQuestion(newQuestion)
+      
+      if (isAudioEnabled) {
+        setIsSpeaking(true)
+        await speechHandler.current?.speak(newQuestion)
+        setIsSpeaking(false)
+      }
+      
+      setIsInterviewerTurn(false)
+      setThinkingProgress(0)
+      setStartTime(Date.now())
+      startListening()
     } catch (error) {
-      clearInterval(thinkingInterval)
       console.error('Error in interview flow:', error)
     }
   }
@@ -303,6 +336,29 @@ export default function MockInterviewPlatform() {
               <SelectItem value="technical">Technical</SelectItem>
             </SelectContent>
           </Select>
+
+          <Select 
+            onValueChange={(value: 'entry' | 'mid' | 'senior') => 
+              setSettings(prev => ({ ...prev, difficulty: value }))}
+            value={settings.difficulty}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select experience level" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="entry">Entry Level</SelectItem>
+              <SelectItem value="mid">Mid Level</SelectItem>
+              <SelectItem value="senior">Senior Level</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <input
+            type="text"
+            placeholder="Role (e.g., Full Stack Developer)"
+            className="w-full p-2 border rounded"
+            value={settings.role}
+            onChange={e => setSettings(prev => ({ ...prev, role: e.target.value }))}
+          />
 
           <Alert>
             <AlertDescription>
