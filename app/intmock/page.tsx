@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, Mic, MicOff, Volume2, VolumeX, ChevronRight } from "lucide-react"
+import { Loader2, Mic, MicOff, Volume2, VolumeX, ChevronRight, Clock, UserIcon, CodeIcon } from "lucide-react"
 import { Toast, ToastProvider, ToastViewport } from "@/components/ui/toast"
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
@@ -94,65 +94,145 @@ AiInterviewer.displayName = 'AiInterviewer'
 
 // Speech synthesis and recognition utility
 class SpeechHandler {
-  private synthesis: SpeechSynthesis
-  private recognition: SpeechRecognition
-  private voices: SpeechSynthesisVoice[] = []
-  
-  constructor() {
-    this.synthesis = window.speechSynthesis
-    this.recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)()
-    this.recognition.continuous = false
-    this.recognition.interimResults = false
-    this.loadVoices()
-  }
+  synthesis: SpeechSynthesis;
+  voices: SpeechSynthesisVoice[];
 
-  private loadVoices = () => {
-    this.voices = this.synthesis.getVoices()
-    if (this.voices.length === 0) {
-      this.synthesis.addEventListener('voiceschanged', () => {
-        this.voices = this.synthesis.getVoices()
-      })
+  constructor() {
+    // Make sure we're in browser environment
+    if (typeof window !== 'undefined') {
+      this.synthesis = window.speechSynthesis;
+      this.voices = [];
+      
+      // Initialize voices
+      if (this.synthesis.getVoices().length > 0) {
+        this.voices = this.synthesis.getVoices();
+      } else {
+        // Add event listener for voices to load
+        this.synthesis.addEventListener('voiceschanged', () => {
+          this.voices = this.synthesis.getVoices();
+        });
+      }
     }
   }
 
   speak = (text: string): Promise<void> => {
     return new Promise((resolve) => {
-      const utterance = new SpeechSynthesisUtterance(text)
-      // Enhanced voice selection
-      const preferredVoices = this.voices.filter(voice => 
-        (voice.name.toLowerCase().includes('female') || 
-         voice.name.includes('Samantha') ||
-         voice.name.includes('Karen')) &&
-        voice.lang.startsWith('en-')  // Ensure English voice
-      )
-      utterance.voice = preferredVoices[0] || this.voices[0]
-      utterance.rate = 0.9  // Slightly slower for clarity
-      utterance.pitch = 1.1  // Slightly higher pitch
-      utterance.onend = () => resolve()
-      this.synthesis.speak(utterance)
-    })
-  }
+      // Cancel any ongoing speech
+      this.synthesis.cancel();
 
-  startListening = (): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      this.recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript
-        resolve(transcript)
-      }
-      this.recognition.onerror = (event) => {
-        reject(event.error)
-      }
-      this.recognition.start()
-    })
-  }
+      const utterance = new SpeechSynthesisUtterance(text);
+      
+      // Set voice properties
+      const voices = this.synthesis.getVoices();
+      const englishVoices = voices.filter(voice => voice.lang.startsWith('en-'));
+      utterance.voice = englishVoices[0] || voices[0];
+      
+      utterance.rate = 1;
+      utterance.pitch = 1;
+      utterance.volume = 1;
 
-  stopListening = () => {
-    this.recognition.stop()
+      // Debug logging
+      console.log('Speaking:', text);
+      console.log('Selected voice:', utterance.voice?.name);
+
+      utterance.onend = () => {
+        console.log('Speech ended');
+        resolve();
+      };
+
+      utterance.onerror = (event) => {
+        console.error('Speech error:', event);
+        resolve();
+      };
+
+      this.synthesis.speak(utterance);
+    });
   }
 }
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY_INTRV_QUES!)
+
+// Add this new component for the interview guide
+const InterviewGuide = () => (
+  <div className="bg-blue-50 p-4 rounded-lg mb-6">
+    <h3 className="font-semibold text-blue-800 mb-2">Quick Guide</h3>
+    <ul className="space-y-2 text-sm text-blue-700">
+      <li>• Speak clearly and at a normal pace</li>
+      <li>• Take a moment to think before answering</li>
+      <li>• Keep your answers between 1-3 minutes</li>
+      <li>• Use the STAR method for behavioral questions</li>
+    </ul>
+  </div>
+)
+
+// Add this new component for the answer input
+const AnswerInput = ({ 
+  answer, 
+  setAnswer, 
+  isListening, 
+  onSubmit, 
+  onStartListening, 
+  onStopListening 
+}: {
+  answer: string;
+  setAnswer: (text: string) => void;
+  isListening: boolean;
+  onSubmit: () => void;
+  onStartListening: () => void;
+  onStopListening: () => void;
+}) => (
+  <div className="space-y-3">
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <span className="font-medium">Your Response</span>
+        {isListening && (
+          <span className="px-2 py-1 text-xs bg-red-100 text-red-600 rounded-full animate-pulse">
+            Recording...
+          </span>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          variant={isListening ? "destructive" : "outline"}
+          onClick={isListening ? onStopListening : onStartListening}
+        >
+          {isListening ? (
+            <>
+              <MicOff className="h-4 w-4 mr-2" />
+              Stop Recording
+            </>
+          ) : (
+            <>
+              <Mic className="h-4 w-4 mr-2" />
+              Start Recording
+            </>
+          )}
+        </Button>
+      </div>
+    </div>
+    
+    <textarea
+      value={answer}
+      onChange={(e) => setAnswer(e.target.value)}
+      placeholder="Type your answer here or use voice recording..."
+      className="w-full h-32 p-3 border rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+    />
+    
+    <div className="flex justify-between items-center">
+      <div className="text-sm text-gray-500">
+        {answer.length > 0 && `${answer.length} characters`}
+      </div>
+      <Button 
+        onClick={onSubmit}
+        disabled={answer.trim().length === 0}
+      >
+        Submit Answer
+      </Button>
+    </div>
+  </div>
+);
 
 export default function MockInterviewPlatform() {
   // State management
@@ -322,123 +402,226 @@ export default function MockInterviewPlatform() {
   const renderPreparationStep = () => (
     <Card className="max-w-2xl mx-auto">
       <CardHeader>
-        <CardTitle>Voice-Based Mock Interview</CardTitle>
-        <CardDescription>Prepare for your interview with our AI interviewer</CardDescription>
+        <CardTitle className="flex items-center gap-2">
+          <span>AI Mock Interview</span>
+          <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">Beta</span>
+        </CardTitle>
+        <CardDescription>Practice your interview skills with our AI interviewer</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          <Select onValueChange={(value: 'behavioral' | 'technical') => setInterviewType(value)} value={interviewType}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select interview type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="behavioral">Behavioral</SelectItem>
-              <SelectItem value="technical">Technical</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="space-y-6">
+          {/* Interview Type Selection */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Interview Type</label>
+            <div className="grid grid-cols-2 gap-4">
+              <Button
+                variant={interviewType === 'behavioral' ? 'default' : 'outline'}
+                onClick={() => setInterviewType('behavioral')}
+                className="w-full"
+              >
+                <UserIcon className="w-4 h-4 mr-2" />
+                Behavioral
+              </Button>
+              <Button
+                variant={interviewType === 'technical' ? 'default' : 'outline'}
+                onClick={() => setInterviewType('technical')}
+                className="w-full"
+              >
+                <CodeIcon className="w-4 h-4 mr-2" />
+                Technical
+              </Button>
+            </div>
+          </div>
 
-          <Select 
-            onValueChange={(value: 'entry' | 'mid' | 'senior') => 
-              setSettings(prev => ({ ...prev, difficulty: value }))}
-            value={settings.difficulty}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select experience level" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="entry">Entry Level</SelectItem>
-              <SelectItem value="mid">Mid Level</SelectItem>
-              <SelectItem value="senior">Senior Level</SelectItem>
-            </SelectContent>
-          </Select>
+          {/* Experience Level */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Experience Level</label>
+            <Select 
+              onValueChange={(value: 'entry' | 'mid' | 'senior') => 
+                setSettings(prev => ({ ...prev, difficulty: value }))}
+              value={settings.difficulty}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select your experience level" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="entry">Entry Level (0-2 years)</SelectItem>
+                <SelectItem value="mid">Mid Level (2-5 years)</SelectItem>
+                <SelectItem value="senior">Senior Level (5+ years)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-          <input
-            type="text"
-            placeholder="Role (e.g., Full Stack Developer)"
-            className="w-full p-2 border rounded"
-            value={settings.role}
-            onChange={e => setSettings(prev => ({ ...prev, role: e.target.value }))}
-          />
+          {/* Role Input */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Target Role</label>
+            <input
+              type="text"
+              placeholder="e.g., Full Stack Developer"
+              className="w-full p-2 border rounded-md"
+              value={settings.role}
+              onChange={e => setSettings(prev => ({ ...prev, role: e.target.value }))}
+            />
+          </div>
 
-          <Alert>
-            <AlertDescription>
-              This interview will use voice interaction. Make sure your microphone is working and you're in a quiet environment.
-            </AlertDescription>
-          </Alert>
+          {/* Audio Test Section */}
+          <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-medium">Audio Settings</span>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setIsAudioEnabled(!isAudioEnabled)}
+              >
+                {isAudioEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+              </Button>
+            </div>
+            <Button 
+              variant="outline"
+              size="sm"
+              onClick={testAudio}
+              disabled={isSpeaking || !isAudioEnabled}
+              className="w-full"
+            >
+              {isSpeaking ? 
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : 
+                <Volume2 className="w-4 h-4 mr-2" />
+              }
+              Test Audio
+            </Button>
+          </div>
         </div>
       </CardContent>
-      <CardFooter className="flex justify-between">
+      <CardFooter className="flex flex-col gap-4">
         <Button 
-          variant="outline" 
-          onClick={() => setIsAudioEnabled(!isAudioEnabled)}
+          onClick={() => setCurrentStep('interview')}
+          className="w-full"
+          disabled={!settings.role || isSpeaking}
         >
-          {isAudioEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+          Start Interview
+          <ChevronRight className="ml-2 h-4 w-4" />
         </Button>
-        <Button onClick={() => setCurrentStep('interview')}>
-          Start Interview <ChevronRight className="ml-2 h-4 w-4" />
-        </Button>
+        <p className="text-xs text-gray-500 text-center">
+          Interview will consist of {settings.questionCount} questions • Approximately {settings.duration} minutes
+        </p>
       </CardFooter>
     </Card>
   )
 
+  // Update the interview step UI
   const renderInterviewStep = () => (
-    <Card className="w-full max-w-4xl mx-auto">
-      <CardHeader>
-        <CardTitle>Mock Interview in Progress</CardTitle>
-        <CardDescription>{interviewType} Interview - Question {interviewHistory.length + 1}/5</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col items-center space-y-6">
-          <AiInterviewer isInterviewerTurn={isInterviewerTurn} isSpeaking={isSpeaking} />
-          
-          <div className="w-full space-y-4">
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="font-semibold">{question}</p>
-              {isInterviewerTurn && (
-                <div className="flex items-center mt-2">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  <Progress value={thinkingProgress} className="w-full" />
+    <div className="w-full max-w-4xl mx-auto space-y-4">
+      {/* Interview Guide */}
+      <InterviewGuide />
+      
+      {/* Main Interview Card */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Mock Interview</CardTitle>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 text-sm">
+                <Clock className="w-4 h-4" />
+                Question {interviewHistory.length + 1}/{settings.questionCount}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsAudioEnabled(!isAudioEnabled)}
+              >
+                {isAudioEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+              </Button>
+            </div>
+          </div>
+          <Progress 
+            value={(interviewHistory.length / settings.questionCount) * 100} 
+            className="w-full mt-2"
+          />
+        </CardHeader>
+        
+        <CardContent>
+          <div className="flex flex-col items-center space-y-6">
+            {/* AI Interviewer */}
+            <div className="relative">
+              <AiInterviewer isInterviewerTurn={isInterviewerTurn} isSpeaking={isSpeaking} />
+              {isSpeaking && (
+                <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2">
+                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                    Speaking...
+                  </span>
                 </div>
               )}
             </div>
-
-            {!isInterviewerTurn && (
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="font-medium">Your Answer:</p>
-                  {isListening ? (
-                    <Mic className="h-4 w-4 text-red-500 animate-pulse" />
-                  ) : (
-                    <MicOff className="h-4 w-4 text-gray-500" />
-                  )}
-                </div>
-                <p>{answer}</p>
+            
+            {/* Question Display */}
+            <div className="w-full">
+              <div className={`p-4 rounded-lg transition-colors ${
+                isInterviewerTurn ? 'bg-gray-50' : 'bg-blue-50'
+              }`}>
+                {isInterviewerTurn ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                    <span className="text-gray-500">Thinking of next question...</span>
+                  </div>
+                ) : (
+                  <>
+                    <h3 className="font-medium mb-2">Question:</h3>
+                    <p className="text-lg">{question}</p>
+                    {interviewType === 'behavioral' && (
+                      <div className="mt-4 text-sm text-gray-600">
+                        <p>💡 Remember to use the STAR method:</p>
+                        <ul className="list-disc ml-5 mt-1">
+                          <li>Situation: Set the context</li>
+                          <li>Task: Describe the challenge</li>
+                          <li>Action: Explain what you did</li>
+                          <li>Result: Share the outcome</li>
+                        </ul>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
-            )}
+
+              {/* Answer Section */}
+              {!isInterviewerTurn && (
+                <div className="mt-4">
+                  <AnswerInput
+                    answer={answer}
+                    setAnswer={setAnswer}
+                    isListening={isListening}
+                    onSubmit={() => handleSubmitAnswer(answer)}
+                    onStartListening={startListening}
+                    onStopListening={() => setIsListening(false)}
+                  />
+                </div>
+              )}
+            </div>
           </div>
-          
-          <Progress 
-            value={(interviewHistory.length / 5) * 100} 
-            className="w-full"
-          />
-        </div>
-      </CardContent>
-      <CardFooter className="flex justify-between">
-        <Button variant="outline" onClick={() => setCurrentStep('complete')}>
-          End Interview
-        </Button>
-        <Button 
-          onClick={() => startListening()}
-          disabled={isInterviewerTurn || isListening}
-        ></Button>
-        <Button 
-          onClick={() => startListening()}
-          disabled={isInterviewerTurn || isListening}
-        >
-          {isListening ? 'Listening...' : 'Start Speaking'}
-        </Button>
-      </CardFooter>
-    </Card>
+        </CardContent>
+      </Card>
+
+      {/* Interview History Card */}
+      {interviewHistory.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Previous Questions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {interviewHistory.map((item, index) => (
+                <div key={index} className="text-sm">
+                  <p className="font-medium">Q{index + 1}: {item.question}</p>
+                  <p className="text-gray-600 mt-1">{item.answer}</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Duration: {Math.round(item.duration / 1000)}s
+                  </p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   )
 
   const renderCompletionStep = () => (
@@ -531,6 +714,57 @@ export default function MockInterviewPlatform() {
       handleInterviewerThinking()
     }
   }, [currentStep])
+
+  // Add debug button to test audio
+  const testAudio = async () => {
+    try {
+      if (!speechHandler.current) {
+        speechHandler.current = new SpeechHandler();
+      }
+      setIsSpeaking(true);
+      await speechHandler.current.speak('This is a test message. Can you hear me?');
+      setIsSpeaking(false);
+    } catch (error) {
+      console.error('Audio test failed:', error);
+    }
+  };
+
+  // Add this to your preparation step UI
+  const renderAudioTest = () => (
+    <div className="mt-4">
+      <Button 
+        onClick={testAudio}
+        disabled={isSpeaking}
+      >
+        Test Audio {isSpeaking && '(Speaking...)'}
+      </Button>
+      <p className="text-sm text-gray-500 mt-2">
+        Click to test if audio is working. Make sure your device volume is turned on.
+      </p>
+    </div>
+  );
+
+  // Add these checks before trying to speak
+  const handleInterviewerResponse = async () => {
+    if (!speechHandler.current) {
+      console.log('Initializing speech handler');
+      speechHandler.current = new SpeechHandler();
+    }
+
+    if (!isAudioEnabled) {
+      console.log('Audio is disabled');
+      return;
+    }
+
+    try {
+      setIsSpeaking(true);
+      await speechHandler.current.speak(question);
+      setIsSpeaking(false);
+    } catch (error) {
+      console.error('Speech error:', error);
+      setIsSpeaking(false);
+    }
+  };
 
   // Main render function
   return (
