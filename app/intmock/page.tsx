@@ -1,5 +1,4 @@
 'use client'
-
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
@@ -95,25 +94,82 @@ AiInterviewer.displayName = 'AiInterviewer'
 // Speech synthesis and recognition utility
 class SpeechHandler {
   synthesis: SpeechSynthesis;
+  recognition: SpeechRecognition | null;
   voices: SpeechSynthesisVoice[];
 
   constructor() {
-    // Make sure we're in browser environment
     if (typeof window !== 'undefined') {
       this.synthesis = window.speechSynthesis;
       this.voices = [];
       
+      // Initialize speech recognition
+      if ('webkitSpeechRecognition' in window) {
+        this.recognition = new (window.webkitSpeechRecognition as any)();
+        this.recognition.continuous = true;
+        this.recognition.interimResults = true;
+        this.recognition.lang = 'en-US';
+      } else {
+        this.recognition = null;
+        console.warn('Speech recognition not supported');
+      }
+
       // Initialize voices
       if (this.synthesis.getVoices().length > 0) {
         this.voices = this.synthesis.getVoices();
       } else {
-        // Add event listener for voices to load
         this.synthesis.addEventListener('voiceschanged', () => {
           this.voices = this.synthesis.getVoices();
         });
       }
     }
   }
+
+  startListening = (): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      if (!this.recognition) {
+        reject('Speech recognition not supported');
+        return;
+      }
+
+      let finalTranscript = '';
+
+      this.recognition.onresult = (event: SpeechRecognitionEvent) => {
+        let interimTranscript = '';
+        
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript;
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+        
+        // Update the answer in real-time as the user speaks
+        if (interimTranscript) {
+          // You'll need to pass a callback function to update the UI
+          this.onInterimTranscript?.(interimTranscript);
+        }
+      };
+
+      this.recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        reject(event.error);
+      };
+
+      this.recognition.onend = () => {
+        resolve(finalTranscript);
+      };
+
+      this.recognition.start();
+    });
+  };
+
+  stopListening = () => {
+    if (this.recognition) {
+      this.recognition.stop();
+    }
+  };
 
   speak = (text: string): Promise<void> => {
     return new Promise((resolve) => {
@@ -188,7 +244,7 @@ const AnswerInput = ({
         <span className="font-medium">Your Response</span>
         {isListening && (
           <span className="px-2 py-1 text-xs bg-red-100 text-red-600 rounded-full animate-pulse">
-            Recording...
+            Recording... Speak clearly
           </span>
         )}
       </div>
@@ -216,20 +272,30 @@ const AnswerInput = ({
     <textarea
       value={answer}
       onChange={(e) => setAnswer(e.target.value)}
-      placeholder="Type your answer here or use voice recording..."
+      placeholder={isListening ? "Speaking... Your words will appear here" : "Type your answer or click 'Start Recording' to speak"}
       className="w-full h-32 p-3 border rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      readOnly={isListening}
     />
     
     <div className="flex justify-between items-center">
       <div className="text-sm text-gray-500">
         {answer.length > 0 && `${answer.length} characters`}
       </div>
-      <Button 
-        onClick={onSubmit}
-        disabled={answer.trim().length === 0}
-      >
-        Submit Answer
-      </Button>
+      <div className="flex gap-2">
+        <Button 
+          variant="outline"
+          onClick={() => setAnswer('')}
+          disabled={answer.length === 0}
+        >
+          Clear
+        </Button>
+        <Button 
+          onClick={onSubmit}
+          disabled={answer.trim().length === 0}
+        >
+          Submit Answer
+        </Button>
+      </div>
     </div>
   </div>
 );
@@ -335,21 +401,26 @@ export default function MockInterviewPlatform() {
   }
 
   const startListening = async () => {
-    if (!isAudioEnabled) return
+    if (!speechHandler.current) return;
     
-    setIsListening(true)
+    setIsListening(true);
     try {
-      const transcript = await speechHandler.current?.startListening()
+      const transcript = await speechHandler.current.startListening();
       if (transcript) {
-        setAnswer(transcript)
-        handleSubmitAnswer(transcript)
+        setAnswer(prev => prev + ' ' + transcript);
       }
     } catch (error) {
-      console.error('Error in speech recognition:', error)
-    } finally {
-      setIsListening(false)
+      console.error('Speech recognition error:', error);
+      // Show error toast or message to user
     }
-  }
+  };
+
+  const stopListening = () => {
+    if (!speechHandler.current) return;
+    
+    speechHandler.current.stopListening();
+    setIsListening(false);
+  };
 
   const handleSubmitAnswer = (finalAnswer: string) => {
     const duration = Date.now() - startTime
@@ -591,7 +662,7 @@ export default function MockInterviewPlatform() {
                     isListening={isListening}
                     onSubmit={() => handleSubmitAnswer(answer)}
                     onStartListening={startListening}
-                    onStopListening={() => setIsListening(false)}
+                    onStopListening={stopListening}
                   />
                 </div>
               )}
