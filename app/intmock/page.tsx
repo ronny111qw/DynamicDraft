@@ -8,6 +8,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Mic, MicOff, Volume2, VolumeX, ChevronRight, Clock, UserIcon, CodeIcon } from "lucide-react"
 import { Toast, ToastProvider, ToastViewport } from "@/components/ui/toast"
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
 
 // Types
 interface InterviewHistoryItem {
@@ -31,6 +33,7 @@ interface InterviewSettings {
   difficulty: 'entry' | 'mid' | 'senior';
   role: string;
 }
+
 
 // AI Interviewer Component with Speaking Animation
 const AiInterviewer = React.memo(({ isInterviewerTurn, isSpeaking }: { isInterviewerTurn: boolean, isSpeaking: boolean }) => {
@@ -96,18 +99,23 @@ class SpeechHandler {
   synthesis: SpeechSynthesis;
   recognition: SpeechRecognition | null;
   voices: SpeechSynthesisVoice[];
+  onInterimTranscript?: (text: string, confidence?: number) => void;
+  private transcriptBuffer: string[] = [];
+  private isProcessing: boolean = false;
 
   constructor() {
     if (typeof window !== 'undefined') {
       this.synthesis = window.speechSynthesis;
       this.voices = [];
       
-      // Initialize speech recognition
       if ('webkitSpeechRecognition' in window) {
         this.recognition = new (window.webkitSpeechRecognition as any)();
         this.recognition.continuous = true;
         this.recognition.interimResults = true;
         this.recognition.lang = 'en-US';
+        this.recognition.maxAlternatives = 3; // Get multiple alternatives
+        // Increase stability
+        this.recognition.interimResults = true;
       } else {
         this.recognition = null;
         console.warn('Speech recognition not supported');
@@ -124,6 +132,21 @@ class SpeechHandler {
     }
   }
 
+  private cleanTranscript(text: string): string {
+    return text
+      // Remove extra whitespace
+      .replace(/\s+/g, ' ')
+      // Remove duplicate adjacent words
+      .replace(/\b(\w+)\s+\1\b/gi, '$1')
+      // Capitalize first letter of sentences
+      .replace(/(^\w|\.\s+\w)/g, letter => letter.toUpperCase())
+      // Add proper spacing after punctuation
+      .replace(/([.!?])\s*(\w)/g, '$1 $2')
+      // Remove extra periods
+      .replace(/\.+/g, '.')
+      .trim();
+  }
+
   startListening = (): Promise<string> => {
     return new Promise((resolve, reject) => {
       if (!this.recognition) {
@@ -131,24 +154,60 @@ class SpeechHandler {
         return;
       }
 
-      let finalTranscript = '';
+      this.transcriptBuffer = [];
+      this.isProcessing = false;
+
+      this.recognition.onstart = () => {
+        console.log('Speech recognition started');
+      };
 
       this.recognition.onresult = (event: SpeechRecognitionEvent) => {
         let interimTranscript = '';
-        
+        let finalTranscript = '';
+
+        // Process results
         for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            finalTranscript += transcript;
+          const result = event.results[i];
+          const transcript = result[0].transcript;
+          
+          if (result.isFinal) {
+            // Get the most confident result
+            let bestTranscript = transcript;
+            let bestConfidence = result[0].confidence;
+
+            // Check alternatives if available
+            for (let j = 1; j < result.length; j++) {
+              if (result[j].confidence > bestConfidence) {
+                bestTranscript = result[j].transcript;
+                bestConfidence = result[j].confidence;
+              }
+            }
+
+            finalTranscript = this.cleanTranscript(bestTranscript);
+            
+            // Add to buffer if it's not a duplicate
+            if (!this.transcriptBuffer.includes(finalTranscript)) {
+              this.transcriptBuffer.push(finalTranscript);
+            }
           } else {
-            interimTranscript += transcript;
+            interimTranscript = transcript;
           }
         }
-        
-        // Update the answer in real-time as the user speaks
-        if (interimTranscript) {
-          // You'll need to pass a callback function to update the UI
-          this.onInterimTranscript?.(interimTranscript);
+
+        // Update the UI with current state
+        if (this.onInterimTranscript) {
+          const currentText = this.cleanTranscript(
+            this.transcriptBuffer.join(' ') + 
+            (interimTranscript ? ' ' + interimTranscript : '')
+          );
+          
+          if (!this.isProcessing) {
+            this.isProcessing = true;
+            setTimeout(() => {
+              this.onInterimTranscript?.(currentText);
+              this.isProcessing = false;
+            }, 100); // Debounce updates
+          }
         }
       };
 
@@ -158,10 +217,15 @@ class SpeechHandler {
       };
 
       this.recognition.onend = () => {
-        resolve(finalTranscript);
+        const finalText = this.cleanTranscript(this.transcriptBuffer.join(' '));
+        resolve(finalText);
       };
 
-      this.recognition.start();
+      try {
+        this.recognition.start();
+      } catch (error) {
+        reject('Failed to start speech recognition');
+      }
     });
   };
 
@@ -229,7 +293,8 @@ const AnswerInput = ({
   isListening, 
   onSubmit, 
   onStartListening, 
-  onStopListening 
+  onStopListening,
+  confidence 
 }: {
   answer: string;
   setAnswer: (text: string) => void;
@@ -237,6 +302,7 @@ const AnswerInput = ({
   onSubmit: () => void;
   onStartListening: () => void;
   onStopListening: () => void;
+  confidence: number;
 }) => (
   <div className="space-y-3">
     <div className="flex items-center justify-between">
@@ -300,6 +366,19 @@ const AnswerInput = ({
   </div>
 );
 
+// Add this component
+const RecordingIndicator = ({ confidence }: { confidence: number }) => (
+  <div className="flex items-center gap-2">
+    <span className="flex h-3 w-3">
+      <span className="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-red-400 opacity-75"></span>
+      <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+    </span>
+    <span className="text-xs text-gray-600">
+      Recognition Quality: {Math.round(confidence * 100)}%
+    </span>
+  </div>
+);
+
 export default function MockInterviewPlatform() {
   // State management
   const [currentStep, setCurrentStep] = useState<'prep' | 'interview' | 'complete'>('prep')
@@ -313,7 +392,6 @@ export default function MockInterviewPlatform() {
   const [interviewHistory, setInterviewHistory] = useState<InterviewHistoryItem[]>([])
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null)
   const [startTime, setStartTime] = useState<number>(0)
-
   const speechHandler = useRef<SpeechHandler>()
   const [isAudioEnabled, setIsAudioEnabled] = useState(true)
 
@@ -326,6 +404,10 @@ export default function MockInterviewPlatform() {
   })
   const [timeRemaining, setTimeRemaining] = useState<number>(0)
   const [isThinking, setIsThinking] = useState(false)
+
+  // Add these states to your component
+  const [recognitionConfidence, setRecognitionConfidence] = useState<number>(0)
+  const [transcriptBuffer, setTranscriptBuffer] = useState<string[]>([])
 
   // Initialize speech handler
   useEffect(() => {
@@ -401,17 +483,27 @@ export default function MockInterviewPlatform() {
   }
 
   const startListening = async () => {
-    if (!speechHandler.current) return;
-    
+    if (!speechHandler.current) {
+      console.error('Speech handler not initialized');
+      return;
+    }
+
     setIsListening(true);
+    setAnswer(''); // Clear previous answer
+    setTranscriptBuffer([]); // Clear buffer
+
     try {
-      const transcript = await speechHandler.current.startListening();
-      if (transcript) {
-        setAnswer(prev => prev + ' ' + transcript);
-      }
+      speechHandler.current.onInterimTranscript = (text: string) => {
+        setAnswer(text);
+      };
+
+      const finalTranscript = await speechHandler.current.startListening();
+      setAnswer(finalTranscript);
     } catch (error) {
       console.error('Speech recognition error:', error);
-      // Show error toast or message to user
+      // Show error message to user
+    } finally {
+      setIsListening(false);
     }
   };
 
@@ -420,6 +512,15 @@ export default function MockInterviewPlatform() {
     
     speechHandler.current.stopListening();
     setIsListening(false);
+    
+    // Clean up the final answer
+    setAnswer(prev => {
+      const cleaned = prev
+        .replace(/\s+/g, ' ')
+        .replace(/(\w)\s+\1/gi, '$1')
+        .trim();
+      return cleaned;
+    });
   };
 
   const handleSubmitAnswer = (finalAnswer: string) => {
@@ -471,113 +572,172 @@ export default function MockInterviewPlatform() {
 
   // Render functions for different steps
   const renderPreparationStep = () => (
-    <Card className="max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <span>AI Mock Interview</span>
-          <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">Beta</span>
-        </CardTitle>
-        <CardDescription>Practice your interview skills with our AI interviewer</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
+      {/* Interview Setup Card */}
+      <Card className="border-0 shadow-lg">
+        <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-lg">
+          <CardTitle className="text-2xl flex items-center gap-3">
+            <UserIcon className="w-6 h-6" />
+            AI Mock Interview
+            <Badge variant="secondary" className="bg-white/20">Beta</Badge>
+          </CardTitle>
+          <CardDescription className="text-gray-100">
+            Get ready for your next interview with our AI-powered practice platform
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent className="p-6 space-y-8">
+          {/* Progress Steps */}
+          <div className="flex justify-between relative">
+            {['Setup', 'Practice', 'Feedback'].map((step, index) => (
+              <div key={step} className="flex flex-col items-center relative z-10">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center
+                  ${index === 0 ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>
+                  {index + 1}
+                </div>
+                <span className="text-sm mt-2">{step}</span>
+              </div>
+            ))}
+            <div className="absolute top-4 left-0 w-full h-[2px] bg-gray-200 -z-0" />
+          </div>
+
           {/* Interview Type Selection */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Interview Type</label>
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Choose Interview Type</h3>
             <div className="grid grid-cols-2 gap-4">
-              <Button
-                variant={interviewType === 'behavioral' ? 'default' : 'outline'}
-                onClick={() => setInterviewType('behavioral')}
-                className="w-full"
-              >
-                <UserIcon className="w-4 h-4 mr-2" />
-                Behavioral
-              </Button>
-              <Button
-                variant={interviewType === 'technical' ? 'default' : 'outline'}
-                onClick={() => setInterviewType('technical')}
-                className="w-full"
-              >
-                <CodeIcon className="w-4 h-4 mr-2" />
-                Technical
-              </Button>
+              {[
+                {
+                  type: 'behavioral',
+                  icon: UserIcon,
+                  title: 'Behavioral Interview',
+                  description: 'Focus on past experiences and soft skills'
+                },
+                {
+                  type: 'technical',
+                  icon: CodeIcon,
+                  title: 'Technical Interview',
+                  description: 'Programming and problem-solving questions'
+                }
+              ].map((option) => (
+                <button
+                  key={option.type}
+                  onClick={() => setInterviewType(option.type)}
+                  className={`p-4 rounded-lg border-2 transition-all
+                    ${interviewType === option.type 
+                      ? 'border-blue-600 bg-blue-50' 
+                      : 'border-gray-200 hover:border-blue-200'}`}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <option.icon className={`w-5 h-5 
+                      ${interviewType === option.type ? 'text-blue-600' : 'text-gray-500'}`} 
+                    />
+                    <span className="font-medium">{option.title}</span>
+                  </div>
+                  <p className="text-sm text-gray-600">{option.description}</p>
+                </button>
+              ))}
             </div>
           </div>
 
           {/* Experience Level */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Experience Level</label>
-            <Select 
-              onValueChange={(value: 'entry' | 'mid' | 'senior') => 
-                setSettings(prev => ({ ...prev, difficulty: value }))}
-              value={settings.difficulty}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select your experience level" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="entry">Entry Level (0-2 years)</SelectItem>
-                <SelectItem value="mid">Mid Level (2-5 years)</SelectItem>
-                <SelectItem value="senior">Senior Level (5+ years)</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Experience Level</h3>
+            <div className="grid grid-cols-3 gap-4">
+              {[
+                { value: 'entry', label: 'Entry Level', years: '0-2 years' },
+                { value: 'mid', label: 'Mid Level', years: '2-5 years' },
+                { value: 'senior', label: 'Senior Level', years: '5+ years' }
+              ].map((level) => (
+                <button
+                  key={level.value}
+                  onClick={() => setSettings(prev => ({ ...prev, difficulty: level.value }))}
+                  className={`p-4 rounded-lg border text-left transition-all
+                    ${settings.difficulty === level.value 
+                      ? 'border-blue-600 bg-blue-50' 
+                      : 'border-gray-200 hover:border-blue-200'}`}
+                >
+                  <div className="font-medium mb-1">{level.label}</div>
+                  <div className="text-sm text-gray-600">{level.years}</div>
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Role Input */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Target Role</label>
-            <input
-              type="text"
-              placeholder="e.g., Full Stack Developer"
-              className="w-full p-2 border rounded-md"
-              value={settings.role}
-              onChange={e => setSettings(prev => ({ ...prev, role: e.target.value }))}
-            />
-          </div>
-
-          {/* Audio Test Section */}
-          <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+          {/* Audio Settings */}
+          <div className="bg-gray-50 rounded-lg p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <span className="font-medium">Audio Settings</span>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => setIsAudioEnabled(!isAudioEnabled)}
+              <h3 className="text-lg font-semibold">Audio Settings</h3>
+              <Switch
+                checked={isAudioEnabled}
+                onCheckedChange={setIsAudioEnabled}
+                className="data-[state=checked]:bg-blue-600"
+              />
+            </div>
+            
+            <div className="flex items-center gap-4">
+              <Button
+                variant="outline"
+                onClick={testAudio}
+                disabled={!isAudioEnabled || isSpeaking}
+                className="w-full relative overflow-hidden"
               >
-                {isAudioEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                {isSpeaking && (
+                  <div className="absolute inset-0 bg-blue-100 animate-progress" />
+                )}
+                <div className="flex items-center gap-2">
+                  {isSpeaking ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Testing Audio...
+                    </>
+                  ) : (
+                    <>
+                      <Volume2 className="w-4 h-4" />
+                      Test Audio
+                    </>
+                  )}
+                </div>
+              </Button>
+              
+              <Button
+                variant="outline"
+                onClick={() => setShowMicTest(true)}
+                disabled={!isAudioEnabled}
+                className="w-full"
+              >
+                <Mic className="w-4 h-4 mr-2" />
+                Test Microphone
               </Button>
             </div>
-            <Button 
-              variant="outline"
-              size="sm"
-              onClick={testAudio}
-              disabled={isSpeaking || !isAudioEnabled}
-              className="w-full"
-            >
-              {isSpeaking ? 
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : 
-                <Volume2 className="w-4 h-4 mr-2" />
-              }
-              Test Audio
-            </Button>
+
+            {!isAudioEnabled && (
+              <Alert variant="warning" className="mt-4">
+                <AlertDescription>
+                  Audio is currently disabled. Enable audio for the full interview experience.
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
-        </div>
-      </CardContent>
-      <CardFooter className="flex flex-col gap-4">
-        <Button 
-          onClick={() => setCurrentStep('interview')}
-          className="w-full"
-          disabled={!settings.role || isSpeaking}
-        >
-          Start Interview
-          <ChevronRight className="ml-2 h-4 w-4" />
-        </Button>
-        <p className="text-xs text-gray-500 text-center">
-          Interview will consist of {settings.questionCount} questions • Approximately {settings.duration} minutes
-        </p>
-      </CardFooter>
-    </Card>
-  )
+        </CardContent>
+
+        <CardFooter className="border-t bg-gray-50 p-6 rounded-b-lg">
+          <div className="w-full space-y-4">
+            <Button 
+              onClick={() => setCurrentStep('interview')}
+              disabled={!settings.role || isSpeaking}
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+            >
+              Start Interview
+              <ChevronRight className="ml-2 h-4 w-4" />
+            </Button>
+            <p className="text-center text-sm text-gray-600">
+              {settings.questionCount} questions • Approximately {settings.duration} minutes
+            </p>
+          </div>
+        </CardFooter>
+      </Card>
+    </div>
+  );
 
   // Update the interview step UI
   const renderInterviewStep = () => (
@@ -663,6 +823,7 @@ export default function MockInterviewPlatform() {
                     onSubmit={() => handleSubmitAnswer(answer)}
                     onStartListening={startListening}
                     onStopListening={stopListening}
+                    confidence={recognitionConfidence}
                   />
                 </div>
               )}
@@ -834,6 +995,46 @@ export default function MockInterviewPlatform() {
     } catch (error) {
       console.error('Speech error:', error);
       setIsSpeaking(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Space bar to start/stop recording
+      if (e.code === 'Space' && e.ctrlKey) {
+        e.preventDefault();
+        if (isListening) {
+          stopListening();
+        } else {
+          startListening();
+        }
+      }
+      
+      // Enter to submit
+      if (e.code === 'Enter' && e.ctrlKey) {
+        e.preventDefault();
+        if (answer.trim()) {
+          handleSubmitAnswer(answer);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [isListening, answer]);
+
+  const handleRecognitionError = (error: string) => {
+    setIsListening(false);
+    
+    switch (error) {
+      case 'not-allowed':
+        return "Please enable microphone access to use voice input.";
+      case 'no-speech':
+        return "No speech was detected. Please try again.";
+      case 'network':
+        return "Network error occurred. Please check your connection.";
+      default:
+        return "An error occurred with speech recognition. Please try again.";
     }
   };
 
