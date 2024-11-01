@@ -8,8 +8,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Mic, MicOff, Volume2, VolumeX, ChevronRight, Clock, UserIcon, CodeIcon } from "lucide-react"
 import { Toast, ToastProvider, ToastViewport } from "@/components/ui/toast"
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
 
 // Types
 interface InterviewHistoryItem {
@@ -552,192 +550,178 @@ export default function MockInterviewPlatform() {
       `Question:\n${item.question}\n\nAnswer:\n${item.answer}\n\nTime taken: ${Math.round(item.duration / 1000)} seconds`
     ).join('\n\n---\n\n')
 
-    const prompt = `You are an experienced technical interviewer. Please evaluate this ${interviewType} interview...`
+    const prompt = `As an experienced technical interviewer, evaluate this ${interviewType} interview for a ${settings.difficulty}-level ${settings.role} position.
+
+    Interview Details:
+    ${interviewDetails}
+
+    Provide your evaluation in valid JSON format (no markdown, no code blocks) following this exact structure:
+    {
+      "strengths": ["strength1", "strength2", "strength3"],
+      "improvements": ["improvement1", "improvement2", "improvement3"],
+      "overallScore": 3,
+      "feedback": "detailed feedback paragraph"
+    }
+
+    Important: Return ONLY the JSON object, no additional text or formatting.
+
+    Base your evaluation on:
+    1. Answer quality and completeness
+    2. Communication clarity
+    3. Technical accuracy (for technical questions)
+    4. Problem-solving approach
+    5. Real-world examples used
+    6. Response timing`
 
     try {
       const result = await model.generateContent(prompt)
       const response = await result.response
-      const evaluation = JSON.parse(response.text())
+      const text = response.text()
+      
+      // Clean the response text to ensure valid JSON
+      const cleanedText = text
+        .replace(/```json\s*/g, '')  // Remove ```json
+        .replace(/```\s*/g, '')      // Remove closing ```
+        .trim()                      // Remove extra whitespace
+
+      const evaluation = JSON.parse(cleanedText)
+      
+      // Validate the evaluation structure
+      if (!evaluation.strengths || !evaluation.improvements || 
+          !evaluation.overallScore || !evaluation.feedback) {
+        throw new Error('Invalid evaluation structure')
+      }
+      
       setEvaluation(evaluation)
     } catch (error) {
       console.error('Error evaluating interview:', error)
-      setEvaluation({
-        strengths: ["Clear communication", "Good approach", "Technical knowledge"],
-        improvements: ["Practice more", "Consider edge cases", "Improve efficiency"],
+      const fallbackEvaluation = {
+        strengths: [
+          "Unable to process evaluation",
+          "Your answers have been recorded",
+          "Please try again or contact support"
+        ],
+        improvements: [
+          "System encountered an error while evaluating",
+          "Try refreshing the page",
+          "Check your network connection"
+        ],
         overallScore: 3,
-        feedback: "The interview showed both strengths and areas for improvement."
-      })
+        feedback: "We encountered a technical error while evaluating your interview. Your responses have been recorded, but we couldn't generate detailed feedback. Please try again or contact support if the problem persists."
+      }
+      setEvaluation(fallbackEvaluation)
     }
   }
 
   // Render functions for different steps
   const renderPreparationStep = () => (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Interview Setup Card */}
-      <Card className="border-0 shadow-lg">
-        <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-lg">
-          <CardTitle className="text-2xl flex items-center gap-3">
-            <UserIcon className="w-6 h-6" />
-            AI Mock Interview
-            <Badge variant="secondary" className="bg-white/20">Beta</Badge>
-          </CardTitle>
-          <CardDescription className="text-gray-100">
-            Get ready for your next interview with our AI-powered practice platform
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent className="p-6 space-y-8">
-          {/* Progress Steps */}
-          <div className="flex justify-between relative">
-            {['Setup', 'Practice', 'Feedback'].map((step, index) => (
-              <div key={step} className="flex flex-col items-center relative z-10">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center
-                  ${index === 0 ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>
-                  {index + 1}
-                </div>
-                <span className="text-sm mt-2">{step}</span>
-              </div>
-            ))}
-            <div className="absolute top-4 left-0 w-full h-[2px] bg-gray-200 -z-0" />
-          </div>
-
+    <Card className="max-w-2xl mx-auto">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <span>AI Mock Interview</span>
+          <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">Beta</span>
+        </CardTitle>
+        <CardDescription>Practice your interview skills with our AI interviewer</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-6">
           {/* Interview Type Selection */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Choose Interview Type</h3>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Interview Type</label>
             <div className="grid grid-cols-2 gap-4">
-              {[
-                {
-                  type: 'behavioral',
-                  icon: UserIcon,
-                  title: 'Behavioral Interview',
-                  description: 'Focus on past experiences and soft skills'
-                },
-                {
-                  type: 'technical',
-                  icon: CodeIcon,
-                  title: 'Technical Interview',
-                  description: 'Programming and problem-solving questions'
-                }
-              ].map((option) => (
-                <button
-                  key={option.type}
-                  onClick={() => setInterviewType(option.type)}
-                  className={`p-4 rounded-lg border-2 transition-all
-                    ${interviewType === option.type 
-                      ? 'border-blue-600 bg-blue-50' 
-                      : 'border-gray-200 hover:border-blue-200'}`}
-                >
-                  <div className="flex items-center gap-3 mb-2">
-                    <option.icon className={`w-5 h-5 
-                      ${interviewType === option.type ? 'text-blue-600' : 'text-gray-500'}`} 
-                    />
-                    <span className="font-medium">{option.title}</span>
-                  </div>
-                  <p className="text-sm text-gray-600">{option.description}</p>
-                </button>
-              ))}
+              <Button
+                variant={interviewType === 'behavioral' ? 'default' : 'outline'}
+                onClick={() => setInterviewType('behavioral')}
+                className="w-full"
+              >
+                <UserIcon className="w-4 h-4 mr-2" />
+                Behavioral
+              </Button>
+              <Button
+                variant={interviewType === 'technical' ? 'default' : 'outline'}
+                onClick={() => setInterviewType('technical')}
+                className="w-full"
+              >
+                <CodeIcon className="w-4 h-4 mr-2" />
+                Technical
+              </Button>
             </div>
           </div>
 
           {/* Experience Level */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Experience Level</h3>
-            <div className="grid grid-cols-3 gap-4">
-              {[
-                { value: 'entry', label: 'Entry Level', years: '0-2 years' },
-                { value: 'mid', label: 'Mid Level', years: '2-5 years' },
-                { value: 'senior', label: 'Senior Level', years: '5+ years' }
-              ].map((level) => (
-                <button
-                  key={level.value}
-                  onClick={() => setSettings(prev => ({ ...prev, difficulty: level.value }))}
-                  className={`p-4 rounded-lg border text-left transition-all
-                    ${settings.difficulty === level.value 
-                      ? 'border-blue-600 bg-blue-50' 
-                      : 'border-gray-200 hover:border-blue-200'}`}
-                >
-                  <div className="font-medium mb-1">{level.label}</div>
-                  <div className="text-sm text-gray-600">{level.years}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Audio Settings */}
-          <div className="bg-gray-50 rounded-lg p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Audio Settings</h3>
-              <Switch
-                checked={isAudioEnabled}
-                onCheckedChange={setIsAudioEnabled}
-                className="data-[state=checked]:bg-blue-600"
-              />
-            </div>
-            
-            <div className="flex items-center gap-4">
-              <Button
-                variant="outline"
-                onClick={testAudio}
-                disabled={!isAudioEnabled || isSpeaking}
-                className="w-full relative overflow-hidden"
-              >
-                {isSpeaking && (
-                  <div className="absolute inset-0 bg-blue-100 animate-progress" />
-                )}
-                <div className="flex items-center gap-2">
-                  {isSpeaking ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Testing Audio...
-                    </>
-                  ) : (
-                    <>
-                      <Volume2 className="w-4 h-4" />
-                      Test Audio
-                    </>
-                  )}
-                </div>
-              </Button>
-              
-              <Button
-                variant="outline"
-                onClick={() => setShowMicTest(true)}
-                disabled={!isAudioEnabled}
-                className="w-full"
-              >
-                <Mic className="w-4 h-4 mr-2" />
-                Test Microphone
-              </Button>
-            </div>
-
-            {!isAudioEnabled && (
-              <Alert variant="warning" className="mt-4">
-                <AlertDescription>
-                  Audio is currently disabled. Enable audio for the full interview experience.
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
-        </CardContent>
-
-        <CardFooter className="border-t bg-gray-50 p-6 rounded-b-lg">
-          <div className="w-full space-y-4">
-            <Button 
-              onClick={() => setCurrentStep('interview')}
-              disabled={!settings.role || isSpeaking}
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Experience Level</label>
+            <Select 
+              onValueChange={(value: 'entry' | 'mid' | 'senior') => 
+                setSettings(prev => ({ ...prev, difficulty: value }))}
+              value={settings.difficulty}
             >
-              Start Interview
-              <ChevronRight className="ml-2 h-4 w-4" />
-            </Button>
-            <p className="text-center text-sm text-gray-600">
-              {settings.questionCount} questions • Approximately {settings.duration} minutes
-            </p>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select your experience level" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="entry">Entry Level (0-2 years)</SelectItem>
+                <SelectItem value="mid">Mid Level (2-5 years)</SelectItem>
+                <SelectItem value="senior">Senior Level (5+ years)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        </CardFooter>
-      </Card>
-    </div>
-  );
+
+          {/* Role Input */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Target Role</label>
+            <input
+              type="text"
+              placeholder="e.g., Full Stack Developer"
+              className="w-full p-2 border rounded-md"
+              value={settings.role}
+              onChange={e => setSettings(prev => ({ ...prev, role: e.target.value }))}
+            />
+          </div>
+
+          {/* Audio Test Section */}
+          <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-medium">Audio Settings</span>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setIsAudioEnabled(!isAudioEnabled)}
+              >
+                {isAudioEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+              </Button>
+            </div>
+            <Button 
+              variant="outline"
+              size="sm"
+              onClick={testAudio}
+              disabled={isSpeaking || !isAudioEnabled}
+              className="w-full"
+            >
+              {isSpeaking ? 
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : 
+                <Volume2 className="w-4 h-4 mr-2" />
+              }
+              Test Audio
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+      <CardFooter className="flex flex-col gap-4">
+        <Button 
+          onClick={() => setCurrentStep('interview')}
+          className="w-full"
+          disabled={!settings.role || isSpeaking}
+        >
+          Start Interview
+          <ChevronRight className="ml-2 h-4 w-4" />
+        </Button>
+        <p className="text-xs text-gray-500 text-center">
+          Interview will consist of {settings.questionCount} questions • Approximately {settings.duration} minutes
+        </p>
+      </CardFooter>
+    </Card>
+  )
 
   // Update the interview step UI
   const renderInterviewStep = () => (
