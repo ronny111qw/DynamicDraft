@@ -15,6 +15,7 @@ interface InterviewHistoryItem {
   answer: string
   timestamp: number
   duration: number
+  type: 'behavioral' | 'technical-theory' | 'technical-coding'
 }
 
 interface Evaluation {
@@ -380,7 +381,7 @@ const RecordingIndicator = ({ confidence }: { confidence: number }) => (
 export default function MockInterviewPlatform() {
   // State management
   const [currentStep, setCurrentStep] = useState<'prep' | 'interview' | 'complete'>('prep')
-  const [interviewType, setInterviewType] = useState<'behavioral' | 'technical'>('behavioral')
+  const [interviewType, setInterviewType] = useState<'behavioral' | 'technical-theory' | 'technical-coding'>('behavioral')
   const [question, setQuestion] = useState('')
   const [answer, setAnswer] = useState('')
   const [isInterviewerTurn, setIsInterviewerTurn] = useState(true)
@@ -416,21 +417,84 @@ export default function MockInterviewPlatform() {
   const generateQuestion = async () => {
     const model = genAI.getGenerativeModel({ model: "gemini-pro" })
     
-    const prompt = `As an experienced ${settings.difficulty}-level technical interviewer, generate a ${interviewType} interview question for a ${settings.role} position.
+    let prompt = '';
     
-    Context:
-    - Previous questions: ${interviewHistory.map(item => item.question).join('; ')}
-    - Candidate's performance: ${interviewHistory.length > 0 ? 'Based on previous answers, adjust difficulty accordingly' : 'Initial question'}
-    - Interview stage: Question ${interviewHistory.length + 1} of ${settings.questionCount}
-    
-    Requirements:
-    1. Make the question challenging but appropriate for the level
-    2. Keep it conversational and clear
-    3. Don't repeat previous questions
-    4. For behavioral questions, focus on real-world scenarios
-    5. For technical questions, focus on practical problem-solving
-    
-    Response format: Just the question, no additional text.`
+    if (interviewType === 'technical-coding') {
+      prompt = `As an experienced ${settings.difficulty}-level technical interviewer, generate a coding interview question for a ${settings.role} position.
+      
+      Context:
+      - Previous questions: ${interviewHistory.map(item => item.question).join('; ')}
+      - Candidate's performance: ${interviewHistory.length > 0 ? 'Based on previous answers, adjust difficulty accordingly' : 'Initial question'}
+      - Interview stage: Question ${interviewHistory.length + 1} of ${settings.questionCount}
+      
+      Requirements:
+      1. Generate a practical coding problem
+      2. Include:
+         - Clear problem statement
+         - Input/Output examples
+         - Constraints
+         - Expected time/space complexity
+      3. Focus on data structures, algorithms, or real-world scenarios
+      4. Make it challenging but solvable in 15-20 minutes
+      5. For entry level: focus on fundamentals
+         For mid level: add system design considerations
+         For senior level: include scalability and optimization
+      
+      Format the response as:
+      Problem: [problem statement]
+      Examples:
+      Input: [example input]
+      Output: [example output]
+      Constraints: [list constraints]
+      Expected Complexity: [time/space complexity]`
+
+    } else if (interviewType === 'technical-theory') {
+      prompt = `As an experienced ${settings.difficulty}-level technical interviewer, generate a technical theory question for a ${settings.role} position.
+      
+      Context:
+      - Previous questions: ${interviewHistory.map(item => item.question).join('; ')}
+      - Candidate's performance: ${interviewHistory.length > 0 ? 'Based on previous answers, adjust difficulty accordingly' : 'Initial question'}
+      - Interview stage: Question ${interviewHistory.length + 1} of ${settings.questionCount}
+      
+      Requirements:
+      1. Focus on:
+         - System design principles
+         - Architecture patterns
+         - Best practices
+         - Technology concepts
+      2. Make it relevant to ${settings.role}
+      3. Include follow-up points to discuss
+      4. For entry level: focus on fundamentals
+         For mid level: include architectural decisions
+         For senior level: add system-wide implications
+      
+      Format the response as:
+      Question: [main question]
+      Context: [additional context or scenario]
+      Key Points to Cover:
+      - [point 1]
+      - [point 2]
+      - [point 3]`
+
+    } else {
+      // Existing behavioral question prompt
+      prompt = `As an experienced ${settings.difficulty}-level technical interviewer, generate a behavioral interview question for a ${settings.role} position.
+      
+      Context:
+      - Previous questions: ${interviewHistory.map(item => item.question).join('; ')}
+      - Candidate's performance: ${interviewHistory.length > 0 ? 'Based on previous answers, adjust difficulty accordingly' : 'Initial question'}
+      - Interview stage: Question ${interviewHistory.length + 1} of ${settings.questionCount}
+      
+      Requirements:
+      1. Focus on real-world scenarios
+      2. Make it challenging but appropriate for the level
+      3. Keep it conversational and clear
+      4. Don't repeat previous questions
+      5. For behavioral questions, focus on real-world scenarios
+      6. For technical questions, focus on practical problem-solving
+      
+      Response format: Just the question, no additional text.`
+    }
 
     try {
       const result = await model.generateContent(prompt)
@@ -528,7 +592,8 @@ export default function MockInterviewPlatform() {
       question,
       answer: finalAnswer,
       timestamp: Date.now(),
-      duration
+      duration,
+      type: interviewType
     }
     
     setInterviewHistory([...interviewHistory, newHistoryItem])
@@ -628,7 +693,7 @@ export default function MockInterviewPlatform() {
           {/* Interview Type Selection */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Interview Type</label>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <Button
                 variant={interviewType === 'behavioral' ? 'default' : 'outline'}
                 onClick={() => setInterviewType('behavioral')}
@@ -638,12 +703,20 @@ export default function MockInterviewPlatform() {
                 Behavioral
               </Button>
               <Button
-                variant={interviewType === 'technical' ? 'default' : 'outline'}
-                onClick={() => setInterviewType('technical')}
+                variant={interviewType === 'technical-theory' ? 'default' : 'outline'}
+                onClick={() => setInterviewType('technical-theory')}
                 className="w-full"
               >
                 <CodeIcon className="w-4 h-4 mr-2" />
-                Technical
+                Theory
+              </Button>
+              <Button
+                variant={interviewType === 'technical-coding' ? 'default' : 'outline'}
+                onClick={() => setInterviewType('technical-coding')}
+                className="w-full"
+              >
+                <CodeIcon className="w-4 h-4 mr-2" />
+                Coding
               </Button>
             </div>
           </div>
