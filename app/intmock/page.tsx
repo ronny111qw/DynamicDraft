@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Mic, MicOff, Volume2, VolumeX, ChevronRight, Clock, UserIcon, CodeIcon } from "lucide-react"
 import { Toast, ToastProvider, ToastViewport } from "@/components/ui/toast"
 import { GoogleGenerativeAI } from '@google/generative-ai'
@@ -15,7 +14,6 @@ interface InterviewHistoryItem {
   answer: string
   timestamp: number
   duration: number
-  type: 'behavioral' | 'technical-theory' | 'technical-coding'
 }
 
 interface Evaluation {
@@ -415,96 +413,147 @@ export default function MockInterviewPlatform() {
 
   // Question generation using Gemini AI
   const generateQuestion = async () => {
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" })
-    
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     let prompt = '';
     
     if (interviewType === 'technical-coding') {
-      prompt = `As an experienced ${settings.difficulty}-level technical interviewer, generate a coding interview question for a ${settings.role} position.
-      
-      Context:
-      - Previous questions: ${interviewHistory.map(item => item.question).join('; ')}
-      - Candidate's performance: ${interviewHistory.length > 0 ? 'Based on previous answers, adjust difficulty accordingly' : 'Initial question'}
-      - Interview stage: Question ${interviewHistory.length + 1} of ${settings.questionCount}
-      
-      Requirements:
-      1. Generate a practical coding problem
-      2. Include:
-         - Clear problem statement
-         - Input/Output examples
-         - Constraints
-         - Expected time/space complexity
-      3. Focus on data structures, algorithms, or real-world scenarios
-      4. Make it challenging but solvable in 15-20 minutes
-      5. For entry level: focus on fundamentals
-         For mid level: add system design considerations
-         For senior level: include scalability and optimization
-      
-      Format the response as:
-      Problem: [problem statement]
+      prompt = `Generate a ${settings.difficulty} level coding question for a ${settings.role} position.
+
+      Previous questions: ${interviewHistory.map(item => item.question).join('; ')}
+
+      ${settings.difficulty === 'entry' ? 
+        'Focus on: Arrays, Strings, Basic algorithms, Simple data structures' :
+        settings.difficulty === 'mid' ? 
+        'Focus on: Data structures, Algorithms, Optimization problems' :
+        'Focus on: Complex algorithms, System design, Scalability challenges'}
+
+      Format the response exactly as:
+      Problem:
+      [clear problem statement]
+
       Examples:
-      Input: [example input]
-      Output: [example output]
-      Constraints: [list constraints]
-      Expected Complexity: [time/space complexity]`
+      Input: [example1]
+      Output: [output1]
+
+      Constraints:
+      - [constraint1]
+      - [constraint2]
+
+      Expected Complexity: Time O(n), Space O(n)`;
 
     } else if (interviewType === 'technical-theory') {
-      prompt = `As an experienced ${settings.difficulty}-level technical interviewer, generate a technical theory question for a ${settings.role} position.
-      
-      Context:
-      - Previous questions: ${interviewHistory.map(item => item.question).join('; ')}
-      - Candidate's performance: ${interviewHistory.length > 0 ? 'Based on previous answers, adjust difficulty accordingly' : 'Initial question'}
-      - Interview stage: Question ${interviewHistory.length + 1} of ${settings.questionCount}
-      
+      prompt = `Generate a ${settings.difficulty} level technical theory question for a ${settings.role} position.
+
+      Previous questions: ${interviewHistory.map(item => item.question).join('; ')}
+
+      ${settings.difficulty === 'entry' ? 
+        'Focus on: Basic programming concepts, Data types, OOP basics, Simple architecture' :
+        settings.difficulty === 'mid' ? 
+        'Focus on: Design patterns, System design, Performance, Testing' :
+        'Focus on: Advanced architecture, Scalability, Technical leadership'}
+
       Requirements:
-      1. Focus on:
-         - System design principles
-         - Architecture patterns
-         - Best practices
-         - Technology concepts
-      2. Make it relevant to ${settings.role}
-      3. Include follow-up points to discuss
-      4. For entry level: focus on fundamentals
-         For mid level: include architectural decisions
-         For senior level: add system-wide implications
-      
-      Format the response as:
-      Question: [main question]
-      Context: [additional context or scenario]
-      Key Points to Cover:
-      - [point 1]
-      - [point 2]
-      - [point 3]`
+      1. Single, clear question
+      2. Focus on one concept
+      3. Appropriate for ${settings.difficulty} level
+      4. No markdown or special formatting
+
+      Example format:
+      What is [concept]? Explain how it works in [specific scenario].`;
 
     } else {
-      // Existing behavioral question prompt
-      prompt = `As an experienced ${settings.difficulty}-level technical interviewer, generate a behavioral interview question for a ${settings.role} position.
-      
-      Context:
-      - Previous questions: ${interviewHistory.map(item => item.question).join('; ')}
-      - Candidate's performance: ${interviewHistory.length > 0 ? 'Based on previous answers, adjust difficulty accordingly' : 'Initial question'}
-      - Interview stage: Question ${interviewHistory.length + 1} of ${settings.questionCount}
-      
+      // Behavioral questions
+      prompt = `Generate a ${settings.difficulty} level behavioral question for a ${settings.role} position.
+
+      Previous questions: ${interviewHistory.map(item => item.question).join('; ')}
+
+      ${settings.difficulty === 'entry' ? 
+        'Focus on: Team collaboration, Learning experiences, Basic problem-solving' :
+        settings.difficulty === 'mid' ? 
+        'Focus on: Project leadership, Technical decisions, Mentoring' :
+        'Focus on: Strategic thinking, Team leadership, Complex problem-solving'}
+
       Requirements:
-      1. Focus on real-world scenarios
-      2. Make it challenging but appropriate for the level
-      3. Keep it conversational and clear
-      4. Don't repeat previous questions
-      5. For behavioral questions, focus on real-world scenarios
-      6. For technical questions, focus on practical problem-solving
-      
-      Response format: Just the question, no additional text.`
+      1. Single, clear scenario-based question
+      2. Focus on real workplace situations
+      3. No hypotheticals
+      4. No markdown or special formatting
+
+      Example format:
+      Tell me about a time when [specific situation]. What did you do and what was the outcome?`;
     }
 
     try {
-      const result = await model.generateContent(prompt)
-      const response = await result.response
-      return response.text().trim()
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      return response.text()
+        .trim()
+        .replace(/\*\*/g, '')
+        .replace(/\*/g, '')
+        .replace(/`/g, '')
+        .replace(/#{1,6}\s/g, '')
+        .replace(/\n{3,}/g, '\n\n');
     } catch (error) {
-      console.error('Error generating question:', error)
-      return getBackupQuestion(interviewType, settings.difficulty)
+      console.error('Error generating question:', error);
+      return getBackupQuestion(interviewType, settings.difficulty);
     }
-  }
+  };
+
+  // Backup questions for all types
+  const getBackupQuestion = (type: string, difficulty: string) => {
+    const questions = {
+      'technical-coding': {
+        entry: `Problem:
+Find the first non-repeating character in a string.
+
+Examples:
+Input: "leetcode"
+Output: 0 (index of 'l')
+
+Constraints:
+- String length <= 10^5
+- Contains only lowercase letters
+
+Expected Complexity: Time O(n), Space O(1)`,
+        mid: `Problem:
+Implement a LRU (Least Recently Used) Cache.
+
+Examples:
+Input: LRUCache(2), put(1,1), put(2,2), get(1)
+Output: 1
+
+Constraints:
+- 1 <= capacity <= 3000
+- Operations: get and put
+
+Expected Complexity: Time O(1), Space O(n)`,
+        senior: `Problem:
+Design a time-based key-value store.
+
+Examples:
+Input: set("foo","bar",1), get("foo",1)
+Output: "bar"
+
+Constraints:
+- All timestamps are monotonically increasing
+- 1 <= key.length, value.length <= 100
+
+Expected Complexity: Time O(log n), Space O(n)`
+      },
+      'technical-theory': {
+        entry: "What are the main differences between var, let, and const in JavaScript? Provide examples of when to use each.",
+        mid: "Explain the concept of dependency injection and its benefits in software development.",
+        senior: "Discuss the trade-offs between monolithic and microservices architectures."
+      },
+      'behavioral': {
+        entry: "Tell me about a time when you had to learn a new technology quickly. How did you approach it?",
+        mid: "Describe a situation where you had to resolve a conflict within your team. What was your approach?",
+        senior: "Tell me about a time when you had to make a difficult technical decision that impacted the entire team."
+      }
+    };
+
+    return questions[type]?.[difficulty] || questions[type]?.['mid'] || "Question generation failed. Please try again.";
+  };
 
   // Add interviewer thinking simulation
   const simulateThinking = async () => {
@@ -592,8 +641,7 @@ export default function MockInterviewPlatform() {
       question,
       answer: finalAnswer,
       timestamp: Date.now(),
-      duration,
-      type: interviewType
+      duration
     }
     
     setInterviewHistory([...interviewHistory, newHistoryItem])
