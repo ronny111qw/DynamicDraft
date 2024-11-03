@@ -42,6 +42,8 @@ interface AnswerInputProps {
   onStopListening: () => void;
   confidence: number;
   interviewType: 'behavioral' | 'technical-theory' | 'technical-coding';
+  programmingLanguage: string;
+  setProgrammingLanguage: (language: string) => void;
 }
 
 
@@ -305,95 +307,161 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
   onStartListening,
   onStopListening,
   confidence,
-  interviewType
-}) => (
-  <div className="space-y-3">
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <span className="font-medium">Your Response</span>
-        {isListening && interviewType !== 'technical-coding' && (
-          <span className="px-2 py-1 text-xs bg-red-100 text-red-600 rounded-full animate-pulse">
-            Recording... Speak clearly
-          </span>
+  interviewType,
+  programmingLanguage,
+  setProgrammingLanguage
+}) => {
+  // Define available languages
+  const programmingLanguages = [
+    { value: 'javascript', label: 'JavaScript' },
+    { value: 'python', label: 'Python' },
+    { value: 'java', label: 'Java' },
+    { value: 'cpp', label: 'C++' },
+    { value: 'csharp', label: 'C#' },
+    { value: 'typescript', label: 'TypeScript' },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="font-medium">Your Response</span>
+          {isListening && interviewType !== 'technical-coding' && (
+            <span className="px-2 py-1 text-xs bg-red-100 text-red-600 rounded-full animate-pulse">
+              Recording... Speak clearly
+            </span>
+          )}
+        </div>
+
+        {/* Voice controls for non-coding questions */}
+        {interviewType !== 'technical-coding' && (
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant={isListening ? "destructive" : "outline"}
+              onClick={isListening ? onStopListening : onStartListening}
+            >
+              {isListening ? (
+                <>
+                  <MicOff className="h-4 w-4 mr-2" />
+                  Stop Recording
+                </>
+              ) : (
+                <>
+                  <Mic className="h-4 w-4 mr-2" />
+                  Start Recording
+                </>
+              )}
+            </Button>
+          </div>
         )}
       </div>
 
-      {/* Show voice controls only for non-coding questions */}
-      {interviewType !== 'technical-coding' && (
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant={isListening ? "destructive" : "outline"}
-            onClick={isListening ? onStopListening : onStartListening}
+      {/* Code Editor with Language Selector */}
+      {interviewType === 'technical-coding' ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 p-2 bg-gray-800 rounded-t-lg border-b border-gray-700">
+            <Select
+              value={programmingLanguage}
+              onValueChange={setProgrammingLanguage}
+            >
+              <SelectTrigger className="w-40 h-8 bg-gray-700 border-gray-600 text-white">
+                <SelectValue placeholder="Select language" />
+              </SelectTrigger>
+              <SelectContent>
+                {programmingLanguages.map((lang) => (
+                  <SelectItem key={lang.value} value={lang.value}>
+                    {lang.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Editor
+            height="300px"
+            language={programmingLanguage}
+            theme="vs-dark"
+            value={answer}
+            onChange={(value) => setAnswer(value || '')}
+            options={{
+              minimap: { enabled: false },
+              fontSize: 14,
+              lineNumbers: 'on',
+              roundedSelection: false,
+              scrollBeyondLastLine: false,
+              automaticLayout: true,
+              tabSize: 2,
+              ...getLanguageSpecificSettings(programmingLanguage)
+            }}
+          />
+        </div>
+      ) : (
+        <textarea
+          value={answer}
+          onChange={(e) => setAnswer(e.target.value)}
+          placeholder={isListening ? "Speaking... Your words will appear here" : "Type your answer or click 'Start Recording' to speak"}
+          className="w-full h-32 p-3 border rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          readOnly={isListening}
+        />
+      )}
+
+      {/* Submit Controls */}
+      <div className="flex justify-between items-center">
+        <div className="text-sm text-gray-500">
+          {answer.length > 0 && `${answer.length} characters`}
+        </div>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline"
+            onClick={() => setAnswer('')}
+            disabled={answer.length === 0}
           >
-            {isListening ? (
-              <>
-                <MicOff className="h-4 w-4 mr-2" />
-                Stop Recording
-              </>
-            ) : (
-              <>
-                <Mic className="h-4 w-4 mr-2" />
-                Start Recording
-              </>
-            )}
+            Clear
+          </Button>
+          <Button 
+            onClick={onSubmit}
+            disabled={answer.trim().length === 0}
+          >
+            Submit Answer
           </Button>
         </div>
-      )}
-    </div>
-    
-    {/* Code Editor for technical coding questions */}
-    {interviewType === 'technical-coding' ? (
-      <div className="border rounded-lg overflow-hidden">
-        <Editor
-          height="300px"
-          defaultLanguage="javascript"
-          theme="vs-dark"
-          value={answer}
-          onChange={(value) => setAnswer(value || '')}
-          options={{
-            minimap: { enabled: false },
-            fontSize: 14,
-            lineNumbers: 'on',
-            roundedSelection: false,
-            scrollBeyondLastLine: false,
-            automaticLayout: true,
-            tabSize: 2,
-          }}
-        />
-      </div>
-    ) : (
-      <textarea
-        value={answer}
-        onChange={(e) => setAnswer(e.target.value)}
-        placeholder={isListening ? "Speaking... Your words will appear here" : "Type your answer or click 'Start Recording' to speak"}
-        className="w-full h-32 p-3 border rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        readOnly={isListening}
-      />
-    )}
-    
-    <div className="flex justify-between items-center">
-      <div className="text-sm text-gray-500">
-        {answer.length > 0 && `${answer.length} characters`}
-      </div>
-      <div className="flex gap-2">
-        <Button 
-          variant="outline"
-          onClick={() => setAnswer('')}
-          disabled={answer.length === 0}
-        >
-          Clear
-        </Button>
-        <Button 
-          onClick={onSubmit}
-          disabled={answer.trim().length === 0}
-        >
-          Submit Answer
-        </Button>
       </div>
     </div>
-  </div>
-);
+  );
+};
+
+// Add language-specific editor settings
+const getLanguageSpecificSettings = (language: string) => {
+  const commonSettings = {
+    formatOnPaste: true,
+    formatOnType: true,
+  };
+
+  switch (language) {
+    case 'python':
+      return {
+        ...commonSettings,
+        tabSize: 4,
+        insertSpaces: true,
+      };
+    case 'java':
+    case 'cpp':
+    case 'csharp':
+      return {
+        ...commonSettings,
+        tabSize: 4,
+        insertSpaces: true,
+        bracketPairColorization: true,
+      };
+    default: // javascript, typescript
+      return {
+        ...commonSettings,
+        tabSize: 2,
+        insertSpaces: true,
+        bracketPairColorization: true,
+      };
+  }
+};
 
 export default function MockInterviewPlatform() {
   // State management
@@ -410,6 +478,16 @@ export default function MockInterviewPlatform() {
   const [startTime, setStartTime] = useState<number>(0)
   const speechHandler = useRef<SpeechHandler>()
   const [isAudioEnabled, setIsAudioEnabled] = useState(true)
+  const [programmingLanguage, setProgrammingLanguage] = useState('javascript')
+  const programmingLanguages = [
+    {value: 'javascript', label: 'JavaScript'},
+    {value: 'python', label: 'Python'},
+    {value: 'java', label: 'Java'},
+    {value: 'csharp', label: 'C#'},
+    {value: 'typescript', label: 'TypeScript'},
+  ]
+  
+  
 
   // Add new states
   const [settings, setSettings] = useState<InterviewSettings>({
@@ -845,6 +923,28 @@ Expected Complexity: Time O(log n), Space O(n)`
               Test Audio
             </Button>
           </div>
+
+          {/* Programming Language Selection - Only show when coding is selected */}
+          {interviewType === 'technical-coding' && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Programming Language</label>
+              <Select
+                value={programmingLanguage}
+                onValueChange={(value: string) => setProgrammingLanguage(value)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select programming language" />
+                </SelectTrigger>
+                <SelectContent>
+                  {programmingLanguages.map((lang) => (
+                    <SelectItem key={lang.value} value={lang.value}>
+                      {lang.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
       </CardContent>
       <CardFooter className="flex flex-col gap-4">
@@ -924,7 +1024,7 @@ Expected Complexity: Time O(log n), Space O(n)`
                     <p className="text-lg">{question}</p>
                     {interviewType === 'behavioral' && (
                       <div className="mt-4 text-sm text-gray-600">
-                        <p>💡 Remember to use the STAR method:</p>
+                        <p> Remember to use the STAR method:</p>
                         <ul className="list-disc ml-5 mt-1">
                           <li>Situation: Set the context</li>
                           <li>Task: Describe the challenge</li>
@@ -949,6 +1049,8 @@ Expected Complexity: Time O(log n), Space O(n)`
                     onStopListening={stopListening}
                     confidence={recognitionConfidence}
                     interviewType={interviewType}
+                    programmingLanguage={programmingLanguage}
+                    setProgrammingLanguage={setProgrammingLanguage}
                   />
                 </div>
               )}
