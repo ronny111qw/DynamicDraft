@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Mic, MicOff, Volume2, VolumeX, ChevronRight, Clock, UserIcon, CodeIcon } from "lucide-react"
 import { Toast, ToastProvider, ToastViewport } from "@/components/ui/toast"
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { Editor } from '@monaco-editor/react'
 
 // Types
 interface InterviewHistoryItem {
@@ -19,6 +20,7 @@ interface InterviewHistoryItem {
 interface Evaluation {
   strengths: string[]
   improvements: string[]
+
   overallScore: number
   feedback: string
 }
@@ -29,6 +31,17 @@ interface InterviewSettings {
   questionCount: number;
   difficulty: 'entry' | 'mid' | 'senior';
   role: string;
+}
+
+interface AnswerInputProps {
+  answer: string;
+  setAnswer: (answer: string) => void;
+  isListening: boolean;
+  onSubmit: () => void;
+  onStartListening: () => void;
+  onStopListening: () => void;
+  confidence: number;
+  interviewType: 'behavioral' | 'technical-theory' | 'technical-coding';
 }
 
 
@@ -284,61 +297,80 @@ const InterviewGuide = () => (
 )
 
 // Add this new component for the answer input
-const AnswerInput = ({ 
-  answer, 
-  setAnswer, 
-  isListening, 
-  onSubmit, 
-  onStartListening, 
+const AnswerInput: React.FC<AnswerInputProps> = ({
+  answer,
+  setAnswer,
+  isListening,
+  onSubmit,
+  onStartListening,
   onStopListening,
-  confidence 
-}: {
-  answer: string;
-  setAnswer: (text: string) => void;
-  isListening: boolean;
-  onSubmit: () => void;
-  onStartListening: () => void;
-  onStopListening: () => void;
-  confidence: number;
+  confidence,
+  interviewType
 }) => (
   <div className="space-y-3">
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
         <span className="font-medium">Your Response</span>
-        {isListening && (
+        {isListening && interviewType !== 'technical-coding' && (
           <span className="px-2 py-1 text-xs bg-red-100 text-red-600 rounded-full animate-pulse">
             Recording... Speak clearly
           </span>
         )}
       </div>
-      <div className="flex items-center gap-2">
-        <Button
-          size="sm"
-          variant={isListening ? "destructive" : "outline"}
-          onClick={isListening ? onStopListening : onStartListening}
-        >
-          {isListening ? (
-            <>
-              <MicOff className="h-4 w-4 mr-2" />
-              Stop Recording
-            </>
-          ) : (
-            <>
-              <Mic className="h-4 w-4 mr-2" />
-              Start Recording
-            </>
-          )}
-        </Button>
-      </div>
+
+      {/* Show voice controls only for non-coding questions */}
+      {interviewType !== 'technical-coding' && (
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant={isListening ? "destructive" : "outline"}
+            onClick={isListening ? onStopListening : onStartListening}
+          >
+            {isListening ? (
+              <>
+                <MicOff className="h-4 w-4 mr-2" />
+                Stop Recording
+              </>
+            ) : (
+              <>
+                <Mic className="h-4 w-4 mr-2" />
+                Start Recording
+              </>
+            )}
+          </Button>
+        </div>
+      )}
     </div>
     
-    <textarea
-      value={answer}
-      onChange={(e) => setAnswer(e.target.value)}
-      placeholder={isListening ? "Speaking... Your words will appear here" : "Type your answer or click 'Start Recording' to speak"}
-      className="w-full h-32 p-3 border rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-      readOnly={isListening}
-    />
+    {/* Code Editor for technical coding questions */}
+    {interviewType === 'technical-coding' ? (
+      <div className="border rounded-lg overflow-hidden">
+        <Editor
+          height="300px"
+          defaultLanguage="javascript"
+          theme="vs-dark"
+          value={answer}
+          onChange={(value) => setAnswer(value || '')}
+          options={{
+            minimap: { enabled: false },
+            fontSize: 14,
+            lineNumbers: 'on',
+            roundedSelection: false,
+            scrollBeyondLastLine: false,
+            automaticLayout: true,
+            tabSize: 2,
+          }}
+        />
+      </div>
+    ) : (
+      <textarea
+        value={answer}
+        onChange={(e) => setAnswer(e.target.value)}
+        placeholder={isListening ? "Speaking... Your words will appear here" : "Type your answer or click 'Start Recording' to speak"}
+        className="w-full h-32 p-3 border rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        readOnly={isListening}
+      />
+    )}
     
     <div className="flex justify-between items-center">
       <div className="text-sm text-gray-500">
@@ -360,19 +392,6 @@ const AnswerInput = ({
         </Button>
       </div>
     </div>
-  </div>
-);
-
-// Add this component
-const RecordingIndicator = ({ confidence }: { confidence: number }) => (
-  <div className="flex items-center gap-2">
-    <span className="flex h-3 w-3">
-      <span className="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-red-400 opacity-75"></span>
-      <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-    </span>
-    <span className="text-xs text-gray-600">
-      Recognition Quality: {Math.round(confidence * 100)}%
-    </span>
   </div>
 );
 
@@ -929,6 +948,7 @@ Expected Complexity: Time O(log n), Space O(n)`
                     onStartListening={startListening}
                     onStopListening={stopListening}
                     confidence={recognitionConfidence}
+                    interviewType={interviewType}
                   />
                 </div>
               )}
