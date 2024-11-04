@@ -1,13 +1,23 @@
 'use client'
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2, Mic, MicOff, Volume2, VolumeX, ChevronRight, Clock, UserIcon, CodeIcon } from "lucide-react"
+import { Loader2, Mic, MicOff, Volume2, VolumeX, ChevronRight, Clock, UserIcon, CodeIcon, SkipForward, CheckIcon, ListIcon } from "lucide-react"
 import { Toast, ToastProvider, ToastViewport } from "@/components/ui/toast"
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { Editor } from '@monaco-editor/react'
+import { Switch } from "@/components/ui/switch"
+import { ClockIcon } from "lucide-react"
+import { motion, AnimatePresence } from 'framer-motion';
+import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+// Add these new imports
+import Link from 'next/link'
+import Image from 'next/image'
+import { Menu, Transition } from '@headlessui/react'
+import { Sparkles, UserCircle } from 'lucide-react'
+import { signOut } from 'next-auth/react'
 
 // Types
 interface InterviewHistoryItem {
@@ -299,7 +309,7 @@ const InterviewGuide = () => (
 )
 
 // Add this new component for the answer input
-const AnswerInput: React.FC<AnswerInputProps> = ({
+const AnswerInput: React.FC<AnswerInputProps> = React.memo(({
   answer,
   setAnswer,
   isListening,
@@ -428,7 +438,7 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
       </div>
     </div>
   );
-};
+});
 
 // Add language-specific editor settings
 const getLanguageSpecificSettings = (language: string) => {
@@ -754,402 +764,691 @@ Expected Complexity: Time O(log n), Space O(n)`
 
   // Evaluation logic
   const evaluateInterview = async () => {
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" })
-    
-    const interviewDetails = interviewHistory.map(item => 
-      `Question:\n${item.question}\n\nAnswer:\n${item.answer}\n\nTime taken: ${Math.round(item.duration / 1000)} seconds`
-    ).join('\n\n---\n\n')
-
-    const prompt = `As an experienced technical interviewer, evaluate this ${interviewType} interview for a ${settings.difficulty}-level ${settings.role} position.
-
-    Interview Details:
-    ${interviewDetails}
-
-    Provide your evaluation in valid JSON format (no markdown, no code blocks) following this exact structure:
-    {
-      "strengths": ["strength1", "strength2", "strength3"],
-      "improvements": ["improvement1", "improvement2", "improvement3"],
-      "overallScore": 3,
-      "feedback": "detailed feedback paragraph"
-    }
-
-    Important: Return ONLY the JSON object, no additional text or formatting.
-
-    Base your evaluation on:
-    1. Answer quality and completeness
-    2. Communication clarity
-    3. Technical accuracy (for technical questions)
-    4. Problem-solving approach
-    5. Real-world examples used
-    6. Response timing`
-
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    let prompt = '';
+  
+    const validateAnswer = (answer: string): boolean => {
+      // Check if answer is just random keystrokes or too short
+      if (answer.length < 10 || /^[a-z]{1,5}$/i.test(answer)) {
+        return false;
+      }
+      return true;
+    };
+  
+    const validAnswers = interviewHistory.filter(item => validateAnswer(item.answer));
+    const invalidAnswers = interviewHistory.filter(item => !validateAnswer(item.answer));
+  
+    if (interviewType === 'technical-coding') {
+      prompt = `You are an expert coding interviewer evaluating a ${settings.difficulty} level ${settings.role} position.
+  
+      EVALUATION SUMMARY:
+      Total Questions: ${interviewHistory.length}
+      Valid Attempts: ${validAnswers.length}
+      Invalid/Nonsensical Responses: ${invalidAnswers.length}
+  
+      CANDIDATE'S RESPONSES:
+      ${interviewHistory.map((item, index) => `
+      PROBLEM ${index + 1}:
+      ${item.question}
+  
+      CANDIDATE'S SOLUTION (${programmingLanguage}):
+      ${item.answer}
+  
+      ATTEMPT VALIDITY: ${validateAnswer(item.answer) ? 'Valid attempt' : 'Invalid/Nonsensical response'}
+      Time taken: ${Math.round(item.duration / 1000)} seconds
+      `).join('\n\n---\n\n')}
+  
+      STRICT SCORING CRITERIA:
+      1/5 - Nonsensical responses or no valid attempts
+      2/5 - Very basic attempts with major issues
+      3/5 - Partial solutions with significant gaps
+      4/5 - Good solutions with minor issues
+      5/5 - Excellent, optimized solutions
+  
+      If more than 50% of answers are nonsensical/invalid, overall score must be 1.
+      If any answer is just random keystrokes, note this as a critical issue.
+  
+      Provide evaluation in this exact JSON format:
+      {
+        "strengths": [
+          "List only genuine strengths if they exist",
+          "For invalid responses, state 'No valid strengths identified'",
+          "Note any legitimate attempt to solve problems"
+        ],
+        "improvements": [
+          "List specific improvements needed",
+          "Address pattern of invalid responses if present",
+          "Suggest proper coding practices"
+        ],
+        "overallScore": "Must be 1 if mostly invalid responses",
+        "feedback": "Detailed analysis of response quality and professionalism",
+        "technicalDetails": {
+          "timeComplexity": "N/A if no valid solutions",
+          "spaceComplexity": "N/A if no valid solutions",
+          "codingStyle": "Score 1-5",
+          "algorithmChoice": "Score 1-5",
+          "edgeCaseHandling": "Score 1-5",
+          "codeEfficiency": "Score 1-5",
+          "technicalIssues": [
+            "List all critical issues",
+            "Note any pattern of invalid responses",
+            "Highlight unprofessional approaches"
+          ],
+          "suggestedOptimizations": [
+            "List specific improvements needed",
+            "Include basic coding practices if missing",
+            "Suggest professional approach improvements"
+          ]
+        }
+      }
+  
+      CRITICAL EVALUATION NOTES:
+      1. If answers are mostly random keystrokes, emphasize the need for professional approach
+      2. If time spent is very low, note lack of effort
+      3. Consider answer validity AND technical accuracy
+      4. Note any pattern of unprofessional responses
+      5. Provide constructive feedback for improvement`;
+  
+    } else if (interviewType === 'technical-theory') {
+      prompt = `You are an expert technical interviewer evaluating a ${settings.difficulty} level ${settings.role} position.
+  
+      EVALUATION SUMMARY:
+      Total Questions: ${interviewHistory.length}
+      Valid Attempts: ${validAnswers.length}
+      Invalid/Nonsensical Responses: ${invalidAnswers.length}
+  
+      CANDIDATE'S RESPONSES:
+      ${interviewHistory.map((item, index) => `
+      QUESTION ${index + 1}:
+      ${item.question}
+  
+      ANSWER:
+      ${item.answer}
+  
+      ATTEMPT VALIDITY: ${validateAnswer(item.answer) ? 'Valid attempt' : 'Invalid/Nonsensical response'}
+      Time: ${Math.round(item.duration / 1000)} seconds
+      `).join('\n\n---\n\n')}
+  
+      TECHNICAL THEORY EVALUATION CRITERIA:
+  
+      1. Technical Knowledge Depth:
+         - Core concept understanding
+         - Technical terminology usage
+         - Implementation knowledge
+         - Best practices awareness
+         - Architecture understanding
+         - Design pattern knowledge
+  
+      2. Problem Analysis:
+         - System thinking ability
+         - Trade-off consideration
+         - Scalability understanding
+         - Performance awareness
+         - Security considerations
+  
+      3. Communication of Technical Concepts:
+         - Clear explanation
+         - Appropriate use of technical terms
+         - Logical flow
+         - Real-world examples
+         - Ability to simplify complex concepts
+  
+      4. Experience Demonstration:
+         - Practical application examples
+         - Past project references
+         - Challenge resolution
+         - Tool/Technology familiarity
+         - Industry awareness
+  
+      5. Technical Reasoning:
+         - Decision justification
+         - Alternative approaches
+         - Pros/cons analysis
+         - Future considerations
+         - Edge case awareness
+  
+      ROLE-SPECIFIC EVALUATION:
+      ${settings.role} Level Requirements:
+      - Junior: Basic understanding with potential
+      - Mid: Solid understanding with implementation experience
+      - Senior: Deep understanding with architectural insights
+  
+      STRICT SCORING CRITERIA:
+      1/5 - Incorrect or nonsensical technical responses
+      2/5 - Basic understanding with significant gaps
+      3/5 - Adequate knowledge but lacking depth
+      4/5 - Strong understanding with minor gaps
+      5/5 - Comprehensive expertise with practical insight
+  
+      Provide evaluation in this exact JSON format:
+      {
+        "strengths": [
+          "List specific technical strengths",
+          "Note areas of expertise",
+          "Highlight unique insights"
+        ],
+        "improvements": [
+          "List knowledge gaps",
+          "Suggest learning areas",
+          "Note missing concepts"
+        ],
+        "overallScore": "Score based on criteria (1-5)",
+        "feedback": "Detailed analysis of technical knowledge",
+        "technicalTheoryDetails": {
+          "conceptualUnderstanding": "Score 1-5",
+          "practicalKnowledge": "Score 1-5",
+          "communicationSkills": "Score 1-5",
+          "problemAnalysis": "Score 1-5",
+          "technicalReasoning": "Score 1-5",
+          "demonstratedExpertise": [
+            "List proven technical areas"
+          ],
+          "knowledgeGaps": [
+            "List areas needing improvement"
+          ],
+          "recommendedResources": [
+            "Specific learning recommendations",
+            "Suggested practice areas"
+          ],
+          "roleReadiness": {
+            "currentLevel": "junior/mid/senior",
+            "nextSteps": [
+              "Specific growth recommendations"
+            ]
+          }
+        }
+      }
+  
+      CRITICAL EVALUATION NOTES:
+      1. Verify technical accuracy of all responses
+      2. Check for understanding vs. memorization
+      3. Assess problem-solving approach
+      4. Evaluate architectural thinking
+      5. Consider scalability understanding
+      6. Look for security awareness
+      7. Assess system design knowledge
+      8. Check for industry best practices
+      9. Evaluate coding principles understanding
+      10. Consider technology ecosystem knowledge
+  
+      ROLE-SPECIFIC CONSIDERATIONS:
+      - For ${settings.role} position, focus on:
+        * Required technical stack knowledge
+        * System design capabilities
+        * Architecture understanding
+        * Team technical leadership
+        * Technical decision-making`;
+  }
+  
     try {
-      const result = await model.generateContent(prompt)
-      const response = await result.response
-      const text = response.text()
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      let text = response.text();
       
-      // Clean the response text to ensure valid JSON
-      const cleanedText = text
-        .replace(/```json\s*/g, '')  // Remove ```json
-        .replace(/```\s*/g, '')      // Remove closing ```
-        .trim()                      // Remove extra whitespace
-
-      const evaluation = JSON.parse(cleanedText)
+      text = text.replace(/```json\s*/g, '')
+                 .replace(/```\s*/g, '')
+                 .replace(/\n/g, ' ')
+                 .trim();
       
-      // Validate the evaluation structure
-      if (!evaluation.strengths || !evaluation.improvements || 
-          !evaluation.overallScore || !evaluation.feedback) {
-        throw new Error('Invalid evaluation structure')
+      if (!text.startsWith('{') || !text.endsWith('}')) {
+        throw new Error('Invalid JSON format received');
+      }
+  
+      const evaluation = JSON.parse(text);
+      
+      // Force score to 1 if mostly invalid responses
+      if (invalidAnswers.length > interviewHistory.length / 2) {
+        evaluation.overallScore = 1;
+        evaluation.feedback = `The majority of responses (${invalidAnswers.length} out of ${interviewHistory.length}) were invalid or nonsensical. A professional approach with genuine attempt to answer questions is required.`;
       }
       
-      setEvaluation(evaluation)
+      setEvaluation(evaluation);
     } catch (error) {
-      console.error('Error evaluating interview:', error)
-      const fallbackEvaluation = {
-        strengths: [
-          "Unable to process evaluation",
-          "Your answers have been recorded",
-          "Please try again or contact support"
-        ],
-        improvements: [
-          "System encountered an error while evaluating",
-          "Try refreshing the page",
-          "Check your network connection"
-        ],
-        overallScore: 3,
-        feedback: "We encountered a technical error while evaluating your interview. Your responses have been recorded, but we couldn't generate detailed feedback. Please try again or contact support if the problem persists."
-      }
-      setEvaluation(fallbackEvaluation)
+      console.error('Evaluation error:', error);
+      setEvaluation(getFallbackEvaluation(interviewType, invalidAnswers.length));
+    }
+  };
+
+  const handleSkipQuestion = () => {
+    const skippedHistoryItem: InterviewHistoryItem = {
+      question,
+      answer: "Question skipped",
+      timestamp: Date.now(),
+      duration: 0
+    }
+    
+    setInterviewHistory([...interviewHistory, skippedHistoryItem])
+    setAnswer('')
+    
+    if (interviewHistory.length < settings.questionCount - 1) {
+      handleInterviewerThinking()
+    } else {
+      setCurrentStep('complete')
+      evaluateInterview()
     }
   }
 
   // Render functions for different steps
   const renderPreparationStep = () => (
-    <Card className="max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+    <Card className="max-w-3xl mx-auto backdrop-blur-sm bg-white/90 shadow-xl">
+      <CardHeader className="space-y-4">
+        <CardTitle className="flex items-center gap-2 text-2xl">
           <span>AI Mock Interview</span>
-          <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">Beta</span>
+          <span className="px-3 py-1 text-xs font-semibold bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full">
+            Beta
+          </span>
         </CardTitle>
-        <CardDescription>Practice your interview skills with our AI interviewer</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-6">
-          {/* Interview Type Selection */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Interview Type</label>
-            <div className="grid grid-cols-3 gap-4">
-              <Button
-                variant={interviewType === 'behavioral' ? 'default' : 'outline'}
-                onClick={() => setInterviewType('behavioral')}
-                className="w-full"
-              >
-                <UserIcon className="w-4 h-4 mr-2" />
-                Behavioral
-              </Button>
-              <Button
-                variant={interviewType === 'technical-theory' ? 'default' : 'outline'}
-                onClick={() => setInterviewType('technical-theory')}
-                className="w-full"
-              >
-                <CodeIcon className="w-4 h-4 mr-2" />
-                Theory
-              </Button>
-              <Button
-                variant={interviewType === 'technical-coding' ? 'default' : 'outline'}
-                onClick={() => setInterviewType('technical-coding')}
-                className="w-full"
-              >
-                <CodeIcon className="w-4 h-4 mr-2" />
-                Coding
-              </Button>
-            </div>
-          </div>
-
-          {/* Experience Level */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Experience Level</label>
-            <Select 
-              onValueChange={(value: 'entry' | 'mid' | 'senior') => 
-                setSettings(prev => ({ ...prev, difficulty: value }))}
-              value={settings.difficulty}
+        <CardDescription className="text-base">
+          Practice your interview skills with our AI-powered interviewer. Get real-time feedback and detailed analysis.
+        </CardDescription>
+        
+        {/* Interview Type Cards */}
+        <div className="grid grid-cols-3 gap-6 mt-6">
+          {[
+            {
+              type: 'behavioral',
+              icon: UserIcon,
+              title: 'Behavioral',
+              description: 'STAR method, soft skills, and experience-based questions'
+            },
+            {
+              type: 'technical-theory',
+              icon: CodeIcon,
+              title: 'Technical Theory',
+              description: 'System design, architecture, and technical concepts'
+            },
+            {
+              type: 'technical-coding',
+              icon: CodeIcon,
+              title: 'Coding',
+              description: 'Data structures, algorithms, and problem-solving'
+            }
+          ].map(item => (
+            <div
+              key={item.type}
+              onClick={() => setInterviewType(item.type)}
+              className={`relative p-6 rounded-xl cursor-pointer transition-all duration-200 ${
+                interviewType === item.type 
+                  ? 'bg-blue-50 border-2 border-blue-500 shadow-md' 
+                  : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+              }`}
             >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select your experience level" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="entry">Entry Level (0-2 years)</SelectItem>
-                <SelectItem value="mid">Mid Level (2-5 years)</SelectItem>
-                <SelectItem value="senior">Senior Level (5+ years)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+              <item.icon className={`w-8 h-8 mb-3 ${
+                interviewType === item.type ? 'text-blue-500' : 'text-gray-500'
+              }`} />
+              <h3 className="font-semibold mb-2">{item.title}</h3>
+              <p className="text-sm text-gray-600">{item.description}</p>
+              {interviewType === item.type && (
+                <div className="absolute -top-2 -right-2">
+                  <div className="bg-blue-500 text-white p-1 rounded-full">
+                    <CheckIcon className="w-4 h-4" />
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </CardHeader>
 
-          {/* Role Input */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Target Role</label>
+      <CardContent className="space-y-8">
+        {/* Experience Level Selector */}
+        <div className="space-y-3">
+          <label className="text-sm font-medium">Experience Level</label>
+          <div className="grid grid-cols-3 gap-4">
+            {[
+              { value: 'entry', label: 'Entry Level', years: '0-2 years' },
+              { value: 'mid', label: 'Mid Level', years: '2-5 years' },
+              { value: 'senior', label: 'Senior Level', years: '5+ years' }
+            ].map(level => (
+              <div
+                key={level.value}
+                onClick={() => setSettings(prev => ({ ...prev, difficulty: level.value }))}
+                className={`p-4 rounded-lg cursor-pointer transition-all ${
+                  settings.difficulty === level.value
+                    ? 'bg-blue-50 border-2 border-blue-500'
+                    : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                }`}
+              >
+                <h4 className="font-medium">{level.label}</h4>
+                <p className="text-sm text-gray-600">{level.years}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Role Input with Suggestions */}
+        <div className="space-y-3">
+          <label className="text-sm font-medium">Target Role</label>
+          <div className="relative">
             <input
               type="text"
               placeholder="e.g., Full Stack Developer"
-              className="w-full p-2 border rounded-md"
+              className="w-full p-3 border-2 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
               value={settings.role}
               onChange={e => setSettings(prev => ({ ...prev, role: e.target.value }))}
             />
+            {settings.role && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <CheckIcon className="w-5 h-5 text-green-500" />
+              </div>
+            )}
           </div>
+        </div>
 
-          {/* Audio Test Section */}
-          <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="font-medium">Audio Settings</span>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => setIsAudioEnabled(!isAudioEnabled)}
-              >
-                {isAudioEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-              </Button>
+        {/* Audio Settings Panel */}
+        <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-6 rounded-xl space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-medium mb-1">Audio Settings</h3>
+              <p className="text-sm text-gray-600">Configure voice interaction preferences</p>
             </div>
-            <Button 
-              variant="outline"
-              size="sm"
-              onClick={testAudio}
-              disabled={isSpeaking || !isAudioEnabled}
-              className="w-full"
-            >
-              {isSpeaking ? 
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : 
-                <Volume2 className="w-4 h-4 mr-2" />
-              }
-              Test Audio
-            </Button>
+            <Switch
+              checked={isAudioEnabled}
+              onCheckedChange={setIsAudioEnabled}
+              className="data-[state=checked]:bg-blue-500"
+            />
           </div>
 
-          {/* Programming Language Selection - Only show when coding is selected */}
-          {interviewType === 'technical-coding' && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Programming Language</label>
-              <Select
-                value={programmingLanguage}
-                onValueChange={(value: string) => setProgrammingLanguage(value)}
+          {isAudioEnabled && (
+            <div className="space-y-3">
+              <Button
+                variant="outline"
+                onClick={testAudio}
+                disabled={isSpeaking}
+                className="w-full bg-white hover:bg-gray-50"
               >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select programming language" />
-                </SelectTrigger>
-                <SelectContent>
-                  {programmingLanguages.map((lang) => (
-                    <SelectItem key={lang.value} value={lang.value}>
-                      {lang.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                {isSpeaking ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Testing Audio...
+                  </>
+                ) : (
+                  <>
+                    <Volume2 className="w-4 h-4 mr-2" />
+                    Test Audio Output
+                  </>
+                )}
+              </Button>
+              <p className="text-xs text-gray-500 text-center">
+                Click to verify your audio settings
+              </p>
             </div>
           )}
         </div>
       </CardContent>
-      <CardFooter className="flex flex-col gap-4">
-        <Button 
+
+      <CardFooter className="flex flex-col gap-4 border-t pt-6">
+        <Button
           onClick={() => setCurrentStep('interview')}
-          className="w-full"
+          className="w-full h-12 text-lg bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
           disabled={!settings.role || isSpeaking}
         >
-          Start Interview
-          <ChevronRight className="ml-2 h-4 w-4" />
+          {!settings.role ? (
+            'Please fill in required fields'
+          ) : (
+            <>
+              Start Interview
+              <ChevronRight className="ml-2 h-5 w-5" />
+            </>
+          )}
         </Button>
-        <p className="text-xs text-gray-500 text-center">
-          Interview will consist of {settings.questionCount} questions • Approximately {settings.duration} minutes
-        </p>
+        
+        <div className="flex items-center justify-center gap-4 text-sm text-gray-600">
+          <div className="flex items-center">
+            <ClockIcon className="w-4 h-4 mr-1" />
+            {settings.duration} minutes
+          </div>
+          <div className="w-1 h-1 bg-gray-300 rounded-full" />
+          <div className="flex items-center">
+            <ListIcon className="w-4 h-4 mr-1" />
+            {settings.questionCount} questions
+          </div>
+        </div>
       </CardFooter>
     </Card>
   )
 
   // Update the interview step UI
   const renderInterviewStep = () => (
-    <div className="w-full max-w-4xl mx-auto space-y-4">
-      {/* Interview Guide */}
-      <InterviewGuide />
-      
-      {/* Main Interview Card */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Mock Interview</CardTitle>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 text-sm">
-                <Clock className="w-4 h-4" />
-                Question {interviewHistory.length + 1}/{settings.questionCount}
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsAudioEnabled(!isAudioEnabled)}
-              >
-                {isAudioEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-              </Button>
-            </div>
+    <div className="w-full max-w-4xl mx-auto space-y-6">
+      {/* Status Bar */}
+      <div className="bg-white/90 backdrop-blur-sm rounded-lg p-4 shadow-sm flex items-center justify-between">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-blue-500" />
+            <span className="text-sm font-medium">
+              Question {interviewHistory.length + 1}/{settings.questionCount}
+            </span>
           </div>
-          <Progress 
-            value={(interviewHistory.length / settings.questionCount) * 100} 
-            className="w-full mt-2"
-          />
-        </CardHeader>
-        
-        <CardContent>
-          <div className="flex flex-col items-center space-y-6">
-            {/* AI Interviewer */}
+          <div className="h-4 w-px bg-gray-200" />
+          <div className="flex items-center gap-2">
+            <UserIcon className="w-4 h-4 text-blue-500" />
+            <span className="text-sm font-medium">{settings.role}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsAudioEnabled(!isAudioEnabled)}
+            className="hover:bg-gray-100"
+          >
+            {isAudioEnabled ? 
+              <Volume2 className="h-4 w-4 text-green-500" /> : 
+              <VolumeX className="h-4 w-4 text-gray-400" />
+            }
+          </Button>
+        </div>
+      </div>
+
+      {/* Main Interview Card */}
+      <Card className="bg-white/90 backdrop-blur-sm shadow-lg border-0">
+        <CardContent className="p-6">
+          <div className="flex flex-col items-center space-y-8">
+            {/* AI Interviewer with Enhanced Animation */}
             <div className="relative">
-              <AiInterviewer isInterviewerTurn={isInterviewerTurn} isSpeaking={isSpeaking} />
-              {isSpeaking && (
-                <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2">
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
-                    Speaking...
-                  </span>
+              <AiInterviewer 
+                isInterviewerTurn={isInterviewerTurn} 
+                isSpeaking={isSpeaking} 
+              />
+              {isInterviewerTurn && (
+                <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2">
+                  <div className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-sm font-medium animate-pulse">
+                    {isSpeaking ? 'Speaking...' : 'Thinking...'}
+                  </div>
                 </div>
               )}
             </div>
-            
+
             {/* Question Display */}
             <div className="w-full">
-              <div className={`p-4 rounded-lg transition-colors ${
-                isInterviewerTurn ? 'bg-gray-50' : 'bg-blue-50'
-              }`}>
-                {isInterviewerTurn ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                    <span className="text-gray-500">Thinking of next question...</span>
+              <AnimatePresence mode="wait">
+                <motion.div 
+                  key={question}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="w-full"
+                >
+                  <div className={`p-4 rounded-lg transition-all duration-300 ${
+                    isInterviewerTurn ? 'bg-blue-50 border border-blue-100' : 'bg-gray-50 border border-gray-100'
+                  }`}>
+                    <p className="text-lg font-medium text-center">{question}</p>
+                    
+                    {/* Interactive Question Controls */}
+                    <div className="flex justify-end gap-2 mt-2">
+                      <TooltipProvider>
+                      <Tooltip content="Repeat Question">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleInterviewerResponse()}
+                          disabled={!isAudioEnabled}
+                        >
+                          <motion.div whileHover={{ rotate: 360 }} transition={{ duration: 0.5 }}>
+                            <Volume2 className="h-4 w-4" />
+                          </motion.div>
+                          </Button>
+                        </Tooltip>
+                      </TooltipProvider>
+                      
+                    </div>
                   </div>
-                ) : (
-                  <>
-                    <h3 className="font-medium mb-2">Question:</h3>
-                    <p className="text-lg">{question}</p>
-                    {interviewType === 'behavioral' && (
-                      <div className="mt-4 text-sm text-gray-600">
-                        <p> Remember to use the STAR method:</p>
-                        <ul className="list-disc ml-5 mt-1">
-                          <li>Situation: Set the context</li>
-                          <li>Task: Describe the challenge</li>
-                          <li>Action: Explain what you did</li>
-                          <li>Result: Share the outcome</li>
-                        </ul>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {/* Answer Section */}
-              {!isInterviewerTurn && (
-                <div className="mt-4">
-                  <AnswerInput
-                    answer={answer}
-                    setAnswer={setAnswer}
-                    isListening={isListening}
-                    onSubmit={() => handleSubmitAnswer(answer)}
-                    onStartListening={startListening}
-                    onStopListening={stopListening}
-                    confidence={recognitionConfidence}
-                    interviewType={interviewType}
-                    programmingLanguage={programmingLanguage}
-                    setProgrammingLanguage={setProgrammingLanguage}
-                  />
-                </div>
-              )}
+                </motion.div>
+              </AnimatePresence>
             </div>
+
+            {/* Answer Input Section */}
+            {!isInterviewerTurn && (
+              <div className="w-full space-y-4">
+                <AnswerInput
+                  answer={answer}
+                  setAnswer={setAnswer}
+                  isListening={isListening}
+                  onSubmit={() => handleSubmitAnswer(answer)}
+                  onStartListening={startListening}
+                  onStopListening={stopListening}
+                  confidence={recognitionConfidence}
+                  interviewType={interviewType}
+                  programmingLanguage={programmingLanguage}
+                  setProgrammingLanguage={setProgrammingLanguage}
+                />
+                
+                <div className="flex justify-between items-center">
+                  <div className="text-sm text-gray-500">
+                    Press Ctrl + Space to {isListening ? 'stop' : 'start'} recording
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={handleSkipQuestion}
+                    className="flex items-center hover:bg-gray-50"
+                  >
+                    <SkipForward className="w-4 h-4 mr-2" />
+                    Skip Question
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Interview History Card */}
-      {interviewHistory.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Previous Questions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {interviewHistory.map((item, index) => (
-                <div key={index} className="text-sm">
-                  <p className="font-medium">Q{index + 1}: {item.question}</p>
-                  <p className="text-gray-600 mt-1">{item.answer}</p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Duration: {Math.round(item.duration / 1000)}s
-                  </p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Interview Progress */}
+      <div className="bg-white/90 backdrop-blur-sm rounded-lg p-4 shadow-sm">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-sm font-medium">Interview Progress</span>
+          <span className="text-sm text-gray-500">
+            {Math.round((interviewHistory.length / settings.questionCount) * 100)}%
+          </span>
+        </div>
+        <Progress 
+          value={(interviewHistory.length / settings.questionCount) * 100} 
+          className="h-2"
+        />
+      </div>
     </div>
   )
 
   const renderCompletionStep = () => (
-    <Card className="w-full max-w-4xl mx-auto">
-      <CardHeader>
-        <CardTitle>Interview Complete</CardTitle>
-        <CardDescription>Here's your performance evaluation</CardDescription>
+    <Card className="w-full max-w-4xl mx-auto bg-white/90 backdrop-blur-sm shadow-lg border-0">
+      <CardHeader className="border-b bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-t-lg">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-2xl">Interview Complete</CardTitle>
+            <CardDescription className="text-blue-100">
+              {settings.role} • {settings.difficulty} Level
+            </CardDescription>
+          </div>
+          <div className="bg-white/20 rounded-lg p-3">
+            <h3 className="text-3xl font-bold">{evaluation?.overallScore}/5</h3>
+          </div>
+        </div>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-6">
-          {evaluation ? (
-            <>
-              <div className="space-y-4">
-                <div>
-                  <h3 className="font-semibold mb-2">Strengths</h3>
-                  <ul className="list-disc pl-5">
-                    {evaluation.strengths.map((strength, index) => (
-                      <li key={index}>{strength}</li>
-                    ))}
-                  </ul>
-                </div>
-                
-                <div>
-                  <h3 className="font-semibold mb-2">Areas for Improvement</h3>
-                  <ul className="list-disc pl-5">
-                    {evaluation.improvements.map((improvement, index) => (
-                      <li key={index}>{improvement}</li>
-                    ))}
-                  </ul>
-                </div>
 
-                <div>
-                  <h3 className="font-semibold mb-2">Overall Score</h3>
-                  <Progress value={evaluation.overallScore * 20} className="w-full" />
-                  <p className="mt-2 text-sm text-gray-600">{evaluation.overallScore}/5</p>
-                </div>
-
-                <div>
-                  <h3 className="font-semibold mb-2">Detailed Feedback</h3>
-                  <p className="text-gray-700">{evaluation.feedback}</p>
-                </div>
-              </div>
-
-              <div className="border-t pt-4">
-                <h3 className="font-semibold mb-4">Interview History</h3>
-                <div className="space-y-4">
-                  {interviewHistory.map((item, index) => (
-                    <div key={index} className="bg-gray-50 p-4 rounded-lg">
-                      <p className="font-medium">Question {index + 1}:</p>
-                      <p className="mb-2">{item.question}</p>
-                      <p className="font-medium">Your Answer:</p>
-                      <p>{item.answer}</p>
-                      <p className="text-sm text-gray-500 mt-2">
-                        Time taken: {Math.round(item.duration / 1000)} seconds
-                      </p>
+      <CardContent className="p-6">
+        {evaluation ? (
+          <div className="space-y-8">
+            {/* Performance Overview */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="bg-green-50 p-4 rounded-lg border border-green-100">
+                <h4 className="text-sm font-medium text-green-800 mb-2">Strengths</h4>
+                <div className="space-y-2">
+                  {evaluation.strengths.map((strength, index) => (
+                    <div key={index} className="flex items-start gap-2">
+                      <CheckIcon className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" />
+                      <p className="text-sm text-green-700">{strength}</p>
                     </div>
                   ))}
                 </div>
               </div>
-            </>
-          ) : (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin" />
-              <span className="ml-2">Evaluating your interview...</span>
+
+              <div className="bg-amber-50 p-4 rounded-lg border border-amber-100">
+                <h4 className="text-sm font-medium text-amber-800 mb-2">Areas for Improvement</h4>
+                <div className="space-y-2">
+                  {evaluation.improvements.map((improvement, index) => (
+                    <div key={index} className="flex items-start gap-2">
+                      <ChevronRight className="w-4 h-4 text-amber-500 mt-1 flex-shrink-0" />
+                      <p className="text-sm text-amber-700">{improvement}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                <h4 className="text-sm font-medium text-blue-800 mb-2">Performance Score</h4>
+                <div className="space-y-4">
+                  <Progress 
+                    value={evaluation.overallScore * 20} 
+                    className="h-2"
+                  />
+                  <div className="flex justify-between text-sm text-blue-600">
+                    <span>Score</span>
+                    <span className="font-medium">{evaluation.overallScore}/5</span>
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
-        </div>
+
+            {/* Detailed Feedback */}
+            <div className="bg-gray-50 p-6 rounded-lg border border-gray-100">
+              <h3 className="font-semibold mb-4">Detailed Feedback</h3>
+              <p className="text-gray-700 leading-relaxed">{evaluation.feedback}</p>
+            </div>
+
+            {/* Interview History */}
+            <div className="space-y-4">
+              <h3 className="font-semibold">Question History</h3>
+              {interviewHistory.map((item, index) => (
+                <div key={index} className="bg-white p-4 rounded-lg border border-gray-200 space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-medium text-gray-900">Question {index + 1}</p>
+                      <p className="text-gray-600">{item.question}</p>
+                    </div>
+                    <span className="text-sm text-gray-500">
+                      {Math.round(item.duration / 1000)}s
+                    </span>
+                  </div>
+                  <div className="pl-4 border-l-2 border-gray-200">
+                    <p className="text-sm font-medium text-gray-700">Your Answer:</p>
+                    <p className="text-gray-600">{item.answer}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-12 space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+            <div className="text-center">
+              <p className="font-medium">Analyzing Your Performance</p>
+              <p className="text-sm text-gray-500">Please wait while we evaluate your interview...</p>
+            </div>
+          </div>
+        )}
       </CardContent>
-      <CardFooter>
+
+      <CardFooter className="border-t p-6">
         <Button 
           onClick={() => {
             setCurrentStep('prep')
@@ -1159,7 +1458,7 @@ Expected Complexity: Time O(log n), Space O(n)`
             setAnswer('')
             setIsInterviewerTurn(true)
           }}
-          className="w-full"
+          className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
         >
           Start New Interview
         </Button>
@@ -1265,9 +1564,86 @@ Expected Complexity: Time O(log n), Space O(n)`
     }
   };
 
+
+
   // Main render function
   return (
     <ToastProvider>
+         <nav className="border-b bg-black border-gray-800 py-4 mb-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center">
+            <Link href="/" className="flex items-center space-x-2">
+              <Sparkles className="w-8 h-8 text-green-400" />
+              <span className="text-2xl font-bold text-white" style={{ fontFamily: 'Nunito' }}>
+                Dynamic<span className="text-green-400">Draft</span>
+              </span>
+            </Link>
+
+            <div className="flex items-center space-x-6">
+              <Link href="/dashboard" className="text-gray-300 hover:text-white">
+                Dashboard
+              </Link>
+              <Link href="/choose-template" className="text-gray-300 hover:text-white">
+                Templates
+              </Link>
+              <Link href="/pricing" className="text-gray-300 hover:text-white">
+                Pricing
+              </Link>
+              <button className="bg-gradient-to-r from-green-400 to-blue-500 text-black px-4 py-2 rounded-full text-sm font-medium hover:from-green-500 hover:to-blue-600 transition-all duration-300">
+                Upgrade
+              </button>
+
+              <Menu as="div" className="relative inline-block text-left">
+                <div>
+                  <Menu.Button className="flex items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    <UserCircle className="w-8 h-8 text-gray-400" />
+                  </Menu.Button>
+                </div>
+                <Transition
+                  as={React.Fragment}
+                  enter="transition ease-out duration-100"
+                  enterFrom="transform opacity-0 scale-95"
+                  enterTo="transform opacity-100 scale-100"
+                  leave="transition ease-in duration-75"
+                  leaveFrom="transform opacity-100 scale-100"
+                  leaveTo="transform opacity-0 scale-95"
+                >
+                  <Menu.Items className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 focus:outline-none">
+                    <div className="py-1">
+                      <Menu.Item>
+                        {({ active }) => (
+                          <Link
+                            href="/profile"
+                            className={`${
+                              active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
+                            } block px-4 py-2 text-sm`}
+                          >
+                            Profile
+                          </Link>
+                        )}
+                      </Menu.Item>
+                    </div>
+                    <div className="py-1">
+                      <Menu.Item>
+                        {({ active }) => (
+                          <button
+                            onClick={() => signOut({ redirect: true, callbackUrl: "/" })}
+                            className={`${
+                              active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
+                            } block w-full text-left px-4 py-2 text-sm`}
+                          >
+                            Sign out
+                          </button>
+                        )}
+                      </Menu.Item>
+                    </div>
+                  </Menu.Items>
+                </Transition>
+              </Menu>
+            </div>
+          </div>
+        </div>
+      </nav>
       <div className="container mx-auto p-4 min-h-screen flex items-center justify-center">
         {currentStep === 'prep' && renderPreparationStep()}
         {currentStep === 'interview' && renderInterviewStep()}
