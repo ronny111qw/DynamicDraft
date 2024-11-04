@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-
 import {
   Collapsible,
   CollapsibleTrigger,
@@ -11,7 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
-import { Loader2, Clipboard, CheckCircle2, RefreshCw, Sparkles, Save, Download, Plus, X, Send, Play, Pause, StopCircle, Mic, MicOff, BarChart, Share2, Book, Video, FileText, Search, Menu, Home, Settings, Calendar, Building, GraduationCap, ChevronDown } from 'lucide-react'
+import { Loader2, Clipboard, CheckCircle2, Sparkles, Save, Plus, X, Send, Play, Pause, Mic, MicOff, BarChart, Book, FileText, Menu, Home, Calendar, Building, GraduationCap, ChevronDown } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
@@ -28,6 +27,12 @@ import { GoogleGenerativeAI } from "@google/generative-ai"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import InterviewScheduler from '@/InterviewSchedulerPlanner'
 import { motion } from 'framer-motion'
+import Link from 'next/link'
+import { UserCircle } from 'lucide-react'
+import { signOut } from 'next-auth/react'
+import { Menu as HeadlessMenu, Transition } from '@headlessui/react' // Rename to avoid conflicts
+
+// Your existing imports
 
 
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY_INTRV_QUES!)
@@ -273,7 +278,6 @@ export default function EnhancedQuestionGenerator() {
   // Company Research 
   const [companyResearch, setCompanyResearch] = useState<CompanyResearch | null>(null)
   const [companyName, setCompanyName] = useState('')
-  const [interviews, setInterviews] = useState<Interview[]>([])
   const [learningPath, setLearningPath] = useState<string[]>([])
 
 
@@ -552,46 +556,6 @@ export default function EnhancedQuestionGenerator() {
   }
 
 
-  const shareQuestionSet = (set) => {
-    const sharedSet = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: set.name,
-      questions: set.questions,
-      sharedBy: "Current User", // Replace with actual user name when implemented
-      sharedAt: new Date().toISOString(),
-    }
-    const updatedSharedSets = [...sharedQuestionSets, sharedSet]
-    setSharedQuestionSets(updatedSharedSets)
-    localStorage.setItem('sharedQuestionSets', JSON.stringify(updatedSharedSets))
-    toast({
-      title: "Question Set Shared",
-      description: `Share code: ${sharedSet.id}`,
-    })
-  }
-
-  const importSharedSet = (sharedId) => {
-    const sharedSet = sharedQuestionSets.find(set => set.id === sharedId)
-    if (sharedSet) {
-      const newSet = {
-        ...sharedSet,
-        name: `Imported: ${sharedSet.name}`,
-      }
-      const updatedSets = [...savedSets, newSet]
-      setSavedSets(updatedSets)
-      localStorage.setItem('savedQuestionSets', JSON.stringify(updatedSets))
-      toast({
-        title: "Question Set Imported",
-        description: `"${newSet.name}" has been imported successfully.`,
-      })
-    } else {
-      toast({
-        title: "Import Failed",
-        description: "Invalid share code. Please try again.",
-        variant: "destructive",
-      })
-    }
-  }
-
   const addResource = (resource: Omit<Resource, 'id'>) => {
     const newResource = { ...resource, id: Math.random().toString(36).substr(2, 9) }
     const updatedResources = [...resources, newResource]
@@ -841,6 +805,81 @@ export default function EnhancedQuestionGenerator() {
 
 return (
     <div className="bg-white min-h-screen text-gray-900 font-sans">
+        <nav className="border-b bg-black border-gray-800 py-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center">
+            <Link href="/" className="flex items-center space-x-2">
+              <Sparkles className="w-8 h-8 text-green-400" />
+              <span className="text-2xl font-bold text-white" style={{ fontFamily: 'Nunito' }}>
+                Dynamic<span className="text-green-400">Draft</span>
+              </span>
+            </Link>
+
+            <div className="flex items-center space-x-6">
+              <Link href="/dashboard" className="text-gray-300 hover:text-white">
+                Dashboard
+              </Link>
+              <Link href="/choose-template" className="text-gray-300 hover:text-white">
+                Templates
+              </Link>
+              <Link href="/pricing" className="text-gray-300 hover:text-white">
+                Pricing
+              </Link>
+              <button className="bg-gradient-to-r from-green-400 to-blue-500 text-black px-4 py-2 rounded-full text-sm font-medium hover:from-green-500 hover:to-blue-600 transition-all duration-300">
+                Upgrade
+              </button>
+
+              <HeadlessMenu as="div" className="relative inline-block text-left">
+                <div>
+                  <HeadlessMenu.Button className="flex items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    <UserCircle className="w-8 h-8 text-gray-400" />
+                  </HeadlessMenu.Button>
+                </div>
+                <Transition
+                  as={React.Fragment}
+                  enter="transition ease-out duration-100"
+                  enterFrom="transform opacity-0 scale-95"
+                  enterTo="transform opacity-100 scale-100"
+                  leave="transition ease-in duration-75"
+                  leaveFrom="transform opacity-100 scale-100"
+                  leaveTo="transform opacity-0 scale-95"
+                >
+                  <HeadlessMenu.Items className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 focus:outline-none">
+                    <div className="py-1">
+                      <HeadlessMenu.Item>
+                        {({ active }) => (
+                          <Link
+                            href="/profile"
+                            className={`${
+                              active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
+                            } block px-4 py-2 text-sm`}
+                          >
+                            Profile
+                          </Link>
+                        )}
+                      </HeadlessMenu.Item>
+                    </div>
+                    <div className="py-1">
+                      <HeadlessMenu.Item>
+                        {({ active }) => (
+                          <button
+                            onClick={() => signOut({ redirect: true, callbackUrl: "/" })}
+                            className={`${
+                              active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
+                            } block w-full text-left px-4 py-2 text-sm`}
+                          >
+                            Sign out
+                          </button>
+                        )}
+                      </HeadlessMenu.Item>
+                    </div>
+                  </HeadlessMenu.Items>
+                </Transition>
+              </HeadlessMenu>
+            </div>
+          </div>
+        </div>
+      </nav>
       <div className="absolute top-0 left-0 w-full h-full bg-[url('/noise.png')] opacity-5 pointer-events-none"></div>
       <div className="relative z-10 flex h-screen overflow-hidden">
         {/* Sidebar */}
