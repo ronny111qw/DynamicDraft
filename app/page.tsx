@@ -1,13 +1,13 @@
 "use client"
-import {signIn} from 'next-auth/react'
+import {signIn, useSession} from 'next-auth/react'
 import React, { useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { Sparkles } from 'lucide-react'
 import { FileText, List, Plus, Settings, Search, Bell, User, ChevronRight, Mail, Phone, Zap, Check, Edit, Layout, GripVertical, SpellCheck, Download } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 export default function LandingPage() {
+  const {data: session} = useSession() 
   const [email, setEmail] = useState('')
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -17,6 +17,11 @@ export default function LandingPage() {
     setEmail('')
     // You might want to add some feedback to the user here
   }
+
+  const handleSignIn = () => {
+    signIn('github') // This will initiate the sign-in process
+  }
+
 
   return (
     <div className="bg-black min-h-screen text-white font-sans">
@@ -33,14 +38,22 @@ export default function LandingPage() {
         <Link href="/features" className="text-gray-300 hover:text-white">Features</Link>
         <Link href="/templates" className="text-gray-300 hover:text-white">Templates</Link>
         <Link href="/pricing" className="text-gray-300 hover:text-white">Pricing</Link>
-        <motion.button 
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="bg-gradient-to-r from-green-400 to-blue-500 text-black px-4 py-2 rounded-full text-sm font-medium hover:from-green-500 hover:to-blue-600 transition-all duration-300"
-
-        >
-          Get Started
-        </motion.button>
+        {session ? (
+                  <Link href="/dashboard" className="bg-gradient-to-r from-green-400 to-blue-500 text-black px-4 py-2 rounded-full text-sm font-medium hover:from-green-500 hover:to-blue-600 transition-all duration-300">Dashboard</Link>
+                ) : (
+                  <Link 
+                  href='/signup'>
+                  <motion.button   
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="bg-gradient-to-r from-green-400 to-blue-500 text-black px-4 py-2 rounded-full text-sm font-medium hover:from-green-500 hover:to-blue-600 transition-all duration-300"
+                    
+                  >
+                    Sign Up
+                  </motion.button>                  
+                  </Link>
+                  
+                )} 
       </div>
     </div>
   </div>
@@ -255,7 +268,7 @@ export default function LandingPage() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
               <div>
                 <h3 className="text-lg font-semibold mb-4 text-green-400">Dynamic Draft</h3>
-                <p className="text-gray-400">Empowering careers with AI-driven resumes.</p>
+                <p className="text-gray-400">Unlock Your Potential with Personalized Prep</p>
               </div>
               <div>
                 <h3 className="text-lg font-semibold mb-4 text-green-400">Quick Links</h3>
