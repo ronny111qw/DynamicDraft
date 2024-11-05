@@ -73,7 +73,7 @@ interface PriorityImprovement {
 }
 
 interface DetailedAnalysisSection extends AnalysisSection {
-  content: string | string[] | {
+  content: string | string[] | PriorityImprovement[] | {
     matching_skills?: string[];
     missing_skills?: string[];
     irrelevant_skills?: string[];
@@ -491,7 +491,7 @@ export default function ResumeOptimizer() {
 
   const renderAnalysisContent = (section: DetailedAnalysisSection) => {
     if (!section.content) return null;
-
+  
     if (typeof section.content === 'string') {
       return <p className="text-gray-700">{section.content}</p>;
     }
@@ -512,7 +512,7 @@ export default function ResumeOptimizer() {
             
             // Handle priority improvement objects
             if (typeof item === 'object' && item !== null && 'priority' in item) {
-              const improvement = item as { priority: string; change: string; reason: string };
+              const improvement = item as PriorityImprovement;
               return (
                 <li key={i} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
                   <Badge 
@@ -537,7 +537,7 @@ export default function ResumeOptimizer() {
         </ul>
       );
     }
-
+  
     // Handle object content (skills, experiences, etc.)
     if (typeof section.content === 'object' && section.content !== null) {
       return (
@@ -562,7 +562,7 @@ export default function ResumeOptimizer() {
         </div>
       );
     }
-
+  
     return null;
   };
 
