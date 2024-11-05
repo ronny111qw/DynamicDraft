@@ -9,6 +9,10 @@ import Link from 'next/link';
 import { CheckCircle, ChevronRight, Edit, FileText, Mail, Plus, Sparkles, Star, UserCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import CheckSignInStatus from "../CheckSignInStatus";
+import { Fredoka } from '@next/font/google';
+
+const fredoka = Fredoka({ weight: ['400','600'], subsets: ['latin'] });
+
 
 export default function Dashboard() {
   const { data: session, status } = useSession();
@@ -41,7 +45,7 @@ export default function Dashboard() {
             <div className="flex justify-between items-center">
             <Link href="/" className="flex items-center space-x-2">
   <Sparkles className="w-8 h-8 text-green-400" />
-  <span className="text-2xl font-bold text-white" style={{ fontFamily: 'Nunito' }}>
+  <span className={`text-3xl font-bold text-white ${fredoka.className}`}>
     Dynamic<span className="text-green-400">Draft</span>
   </span>
 </Link>
