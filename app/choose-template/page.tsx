@@ -9,6 +9,9 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { templates } from '../templates/templateData'
 import { CheckCircle, Sparkles, Search } from 'lucide-react'
+import { Fredoka } from '@next/font/google';
+
+const fredoka = Fredoka({ weight: ['400','600'], subsets: ['latin'] });
 
 export default function ChooseTemplate() {
   const router = useRouter()
@@ -60,7 +63,9 @@ export default function ChooseTemplate() {
             <div className="flex justify-between items-center">
               <Link href="/" className="flex items-center space-x-2">
                 <Sparkles className="w-8 h-8 text-green-400" />
-                <span className="text-2xl font-bold text-white">Dynamic<span className="text-green-400">Draft</span></span>
+                <span className={`text-3xl font-bold text-white ${fredoka.className}`}>
+                  Dynamic<span className="text-green-400">Draft</span>
+                </span> 
               </Link>
               <div className="flex items-center space-x-6">
                 <Link href="/dashboard" className="text-gray-300 hover:text-white">Dashboard</Link>
