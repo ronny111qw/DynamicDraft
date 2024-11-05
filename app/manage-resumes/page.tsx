@@ -7,61 +7,140 @@ import { Sparkles, ArrowLeft, Edit, Trash2, Check, X } from "lucide-react"
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { toast } from "@/components/ui/use-toast"
+import { useSession } from "next-auth/react"
+import { Fredoka } from '@next/font/google';
 
-interface ResumeTemplate {
-  id: string
-  name: string
-  content: any // Replace 'any' with your actual resume data structure
-  lastModified: Date
+const fredoka = Fredoka({ weight: ['400','600'], subsets: ['latin'] }); 
+
+interface Resume {
+  id: number
+  content: any
+  template: string
+  dateCreated: Date
+  userId: string
 }
 
 const ResumeManager: React.FC = () => {
-  const [savedResumes, setSavedResumes] = useState<ResumeTemplate[]>([])
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [savedResumes, setSavedResumes] = useState<Resume[]>([])
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [editingName, setEditingName] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
+  const { data: session } = useSession()
 
   useEffect(() => {
-    const saved = localStorage.getItem('savedResumes')
-    if (saved) {
-      setSavedResumes(JSON.parse(saved))
+    if (session?.user) {
+      fetchUserResumes()
     }
-  }, [])
+  }, [session])
 
-  const loadResume = (id: string) => {
+  const fetchUserResumes = async () => {
+    try {
+      const response = await fetch('/api/resumes')
+      if (!response.ok) throw new Error('Failed to fetch resumes')
+      const data = await response.json()
+      setSavedResumes(data)
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load resumes. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const loadResume = (id: number) => {
     router.push(`/resume-builder?id=${id}`)
   }
 
-  const startRenaming = (id: string, currentName: string) => {
+  const startRenaming = (id: number, currentName: string) => {
     setEditingId(id)
     setEditingName(currentName)
   }
 
-  const finishRenaming = () => {
+  const finishRenaming = async () => {
     if (editingId) {
-      const updatedResumes = savedResumes.map(resume => 
-        resume.id === editingId ? { ...resume, name: editingName } : resume
-      )
-      setSavedResumes(updatedResumes)
-      localStorage.setItem('savedResumes', JSON.stringify(updatedResumes))
+      try {
+        const response = await fetch(`/api/resumes/${editingId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            content: {
+              ...savedResumes.find(r => r.id === editingId)?.content,
+              name: editingName 
+            }
+          }),
+        })
+
+        if (!response.ok) throw new Error('Failed to update resume')
+
+        const updatedResume = await response.json()
+        setSavedResumes(prevResumes =>
+          prevResumes.map(resume =>
+            resume.id === editingId ? updatedResume : resume
+          )
+        )
+
+        toast({
+          title: "Resume Updated",
+          description: "The resume name has been updated successfully.",
+        })
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to update resume name. Please try again.",
+          variant: "destructive",
+        })
+      }
       setEditingId(null)
+    }
+  }
+
+  const deleteResume = async (id: number) => {
+    try {
+      const response = await fetch(`/api/resumes/${id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) throw new Error('Failed to delete resume')
+
+      setSavedResumes(prevResumes =>
+        prevResumes.filter(resume => resume.id !== id)
+      )
+
       toast({
-        title: "Resume Renamed",
-        description: "The resume name has been updated.",
+        title: "Resume Deleted",
+        description: "The resume has been deleted successfully.",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete resume. Please try again.",
+        variant: "destructive",
       })
     }
   }
 
-  const deleteResume = (id: string) => {
-    const updatedResumes = savedResumes.filter(resume => resume.id !== id)
-    setSavedResumes(updatedResumes)
-    localStorage.setItem('savedResumes', JSON.stringify(updatedResumes))
-    toast({
-      title: "Resume Deleted",
-      description: "The selected resume has been deleted.",
-    })
+  if (!session) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-4">Please Sign In</h2>
+          <p className="mb-4">You need to be signed in to view and manage your resumes.</p>
+          <Link href="/auth/signin">
+            <Button className="bg-green-500 hover:bg-green-600">
+              Sign In
+            </Button>
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -73,7 +152,9 @@ const ResumeManager: React.FC = () => {
             <div className="flex justify-between items-center">
               <Link href="/" className="flex items-center space-x-2">
                 <Sparkles className="w-8 h-8 text-green-400" />
-                <span className="text-2xl font-bold text-white">Dynamic<span className="text-green-400">Draft</span></span>
+                <span className={`text-3xl font-bold text-white ${fredoka.className}`}>
+                  Dynamic<span className="text-green-400">Draft</span>
+                </span> 
               </Link>
               <Link href="/dashboard" className="flex items-center text-gray-300 hover:text-white">
                 <ArrowLeft className="w-4 h-4 mr-2" /> Back to Dashboard
@@ -83,79 +164,103 @@ const ResumeManager: React.FC = () => {
         </nav>
 
         <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-green-400 to-blue-500 text-transparent bg-clip-text">My Resumes</h1>
+          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-green-400 to-blue-500 text-transparent bg-clip-text">
+            My Resumes
+          </h1>
           
           <div className="mb-8">
-          <Card className="bg-gray-900 border-gray-800">
-            <CardContent className="pt-6">
-              <motion.div 
-                initial="hidden"
-                animate="visible"
-                variants={{
-                  hidden: { opacity: 0 },
-                  visible: {
-                    opacity: 1,
-                    transition: {
-                      staggerChildren: 0.1
-                    }
-                  }
-                }}
-              >
-                <AnimatePresence>
-                  {savedResumes.map((resume) => (
-                    <motion.div
-                      key={resume.id}
-                      variants={{
-                        hidden: { y: 20, opacity: 0 },
-                        visible: { y: 0, opacity: 1 }
-                      }}
-                      exit={{ opacity: 0, y: -20 }}
-                      className="flex items-center justify-between mb-4 p-4 bg-gray-800 rounded-lg"
-                    >
-                      {editingId === resume.id ? (
-                        <Input
-                          value={editingName}
-                          onChange={(e) => setEditingName(e.target.value)}
-                          className="mr-2 bg-gray-700 text-white border-gray-600"
-                        />
-                      ) : (
-                        <div>
-                          <span className="text-white font-medium">{resume.name}</span>
-                          <p className="text-sm text-gray-400">Last modified: {new Date(resume.lastModified).toLocaleString()}</p>
+            <Card className="bg-gray-900 border-gray-800">
+              <CardContent className="pt-6">
+                {isLoading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-400 mx-auto"></div>
+                  </div>
+                ) : (
+                  <motion.div 
+                    initial="hidden"
+                    animate="visible"
+                    variants={{
+                      hidden: { opacity: 0 },
+                      visible: {
+                        opacity: 1,
+                        transition: {
+                          staggerChildren: 0.1
+                        }
+                      }
+                    }}
+                  >
+                    <AnimatePresence>
+                      {savedResumes.length === 0 ? (
+                        <div className="text-center py-8 text-gray-400">
+                          <p>No resumes found. Create your first resume to get started!</p>
                         </div>
+                      ) : (
+                        savedResumes.map((resume) => (
+                          <motion.div
+                            key={resume.id}
+                            variants={{
+                              hidden: { y: 20, opacity: 0 },
+                              visible: { y: 0, opacity: 1 }
+                            }}
+                            exit={{ opacity: 0, y: -20 }}
+                            className="flex items-center justify-between mb-4 p-4 bg-gray-800 rounded-lg"
+                          >
+                            {editingId === resume.id ? (
+                              <Input
+                                value={editingName}
+                                onChange={(e) => setEditingName(e.target.value)}
+                                className="mr-2 bg-gray-700 text-white border-gray-600"
+                              />
+                            ) : (
+                              <div>
+                                <span className="text-white font-medium">
+                                  {resume.content.name || `Resume ${resume.id}`}
+                                </span>
+                                <p className="text-sm text-gray-400">
+                                  Last modified: {new Date(resume.dateCreated).toLocaleString()}
+                                </p>
+                              </div>
+                            )}
+                            <div className="flex space-x-2">
+                              {editingId === resume.id ? (
+                                <>
+                                  <Button onClick={finishRenaming} className="bg-green-500 hover:bg-green-600">
+                                    <Check className="w-4 h-4" />
+                                  </Button>
+                                  <Button onClick={() => setEditingId(null)} className="bg-red-500 hover:bg-red-600">
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Button 
+                                    onClick={() => loadResume(resume.id)} 
+                                    className="bg-gradient-to-r from-teal-400 to-blue-400 text-gray-800 hover:from-teal-500 hover:to-blue-500"
+                                  >
+                                    <Edit className="w-4 h-4 mr-2" /> Edit
+                                  </Button>
+                                  <Button 
+                                    onClick={() => startRenaming(resume.id, resume.content.name || `Resume ${resume.id}`)} 
+                                    className="bg-yellow-500 hover:bg-yellow-600"
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
+                                  <Button onClick={() => deleteResume(resume.id)} variant="destructive">
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </motion.div>
+                        ))
                       )}
-                      <div className="flex space-x-2">
-                        {editingId === resume.id ? (
-                          <>
-                            <Button onClick={finishRenaming} className="bg-green-500 hover:bg-green-600">
-                              <Check className="w-4 h-4" />
-                            </Button>
-                            <Button onClick={() => setEditingId(null)} className="bg-red-500 hover:bg-red-600">
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <Button onClick={() => loadResume(resume.id)} className="bg-gradient-to-r from-teal-400 to-blue-400 text-gray-800 hover:from-teal-500 hover:to-blue-500">
-                              <Edit className="w-4 h-4 mr-2" /> Edit
-                            </Button>
-                            <Button onClick={() => startRenaming(resume.id, resume.name)} className="bg-yellow-500 hover:bg-yellow-600">
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button onClick={() => deleteResume(resume.id)} variant="destructive">
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </motion.div>
-            </CardContent>
-          </Card>
+                    </AnimatePresence>
+                  </motion.div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </div>
       </div>
     </div>
   )

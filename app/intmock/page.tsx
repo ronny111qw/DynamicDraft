@@ -14,10 +14,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 // Add these new imports
 import Link from 'next/link'
-import Image from 'next/image'
 import { Menu, Transition } from '@headlessui/react'
 import { Sparkles, UserCircle } from 'lucide-react'
 import { signOut } from 'next-auth/react'
+import { Fredoka } from '@next/font/google';
+
+const fredoka = Fredoka({ weight: ['400','600'], subsets: ['latin'] });
 
 // Types
 interface InterviewHistoryItem {
@@ -1574,9 +1576,9 @@ Expected Complexity: Time O(log n), Space O(n)`
           <div className="flex justify-between items-center">
             <Link href="/" className="flex items-center space-x-2">
               <Sparkles className="w-8 h-8 text-green-400" />
-              <span className="text-2xl font-bold text-white" style={{ fontFamily: 'Nunito' }}>
+              <span className={`text-3xl font-bold text-white ${fredoka.className}`}>
                 Dynamic<span className="text-green-400">Draft</span>
-              </span>
+              </span> 
             </Link>
 
             <div className="flex items-center space-x-6">
