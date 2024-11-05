@@ -31,6 +31,9 @@ import Link from 'next/link'
 import { UserCircle } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 import { Menu as HeadlessMenu, Transition } from '@headlessui/react' // Rename to avoid conflicts
+import { Fredoka } from '@next/font/google';
+
+const fredoka = Fredoka({ weight: ['400','600'], subsets: ['latin'] });
 
 // Your existing imports
 
@@ -810,9 +813,9 @@ return (
           <div className="flex justify-between items-center">
             <Link href="/" className="flex items-center space-x-2">
               <Sparkles className="w-8 h-8 text-green-400" />
-              <span className="text-2xl font-bold text-white" style={{ fontFamily: 'Nunito' }}>
+              <span className={`text-3xl font-bold text-white ${fredoka.className}`}>
                 Dynamic<span className="text-green-400">Draft</span>
-              </span>
+                  </span>
             </Link>
 
             <div className="flex items-center space-x-6">
