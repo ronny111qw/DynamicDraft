@@ -3,7 +3,7 @@
 import { signOut, useSession } from 'next-auth/react';
 import { Menu, Transition } from '@headlessui/react'
 import Image from 'next/image'
-import { UserCircle } from 'lucide-react'
+import { MessageCircle, UserCircle } from 'lucide-react'
 import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { CheckCircle, ChevronRight, Edit, FileText, Mail, Plus, Sparkles, Star, UserCheck } from 'lucide-react';
@@ -18,24 +18,78 @@ export default function Dashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  useEffect(() => {
-    if (status === 'loading') return;
+  const routes = [
+    '/resume-builder',
+    '/manage-resumes',
+    '/choose-template',
+    '/resume-optimizer',
+    '/IntrviewPrep',
+    '/intmock'
+  ];
 
-    if (!session) {
+  useEffect(() => {
+    routes.forEach(route => {
+      router.prefetch(route);
+    });
+  }, [router]);
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
       router.push('/login');
     }
-  }, [session, status, router]);
+  }, [status, router]);
 
-  // Show loading state while checking session
   if (status === 'loading') {
-    return <div>Loading...</div>;
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-400"></div>
+      </div>
+    );
   }
 
-  // Only render dashboard content if we have a session
-  if (!session) {
-    return null;
-  }
-  
+  if (!session) return null;
+
+  const dashboardCards = [
+    {
+      title: "Create New Resume",
+      description: "Build an AI-powered resume effortlessly",
+      icon: <Plus className="w-6 h-6" />,
+      link: "/resume-builder"
+    },
+    {
+      title: "Manage Resumes",
+      description: "Edit and view your AI-enhanced resumes",
+      icon: <Edit className="w-6 h-6" />,
+      link: "/manage-resumes"
+    },
+    {
+      title: "AI Templates",
+      description: "Select from a variety of optimized templates",
+      icon: <FileText className="w-6 h-6" />,
+      link: "/choose-template"
+    },
+    {
+      title: "AI Resume Optimizer",
+      description: "Optimize your resume for ATS compatibility",
+      icon: <CheckCircle className="w-6 h-6" />,
+      link: "/resume-optimizer"
+    },
+    {
+      title: "Interview Prep",
+      description: "Prepare for your next interview",
+      icon: <MessageCircle className="w-6 h-6" />,
+      link: "/IntrviewPrep"
+    },
+
+    {
+      title: "AI Mock Interview",
+      description: "Practice your interview skills with AI",
+      icon: <MessageCircle className="w-6 h-6" />,
+      link: "/intmock"
+    }
+
+  ];
+
   return (
     <div className="bg-black min-h-screen text-white font-sans">
       <div className="absolute top-0 left-0 w-full h-full bg-[url('/noise.png')] opacity-5 pointer-events-none"></div>
@@ -134,44 +188,16 @@ export default function Dashboard() {
 </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
-            <DashboardCard 
-              title="Create New Resume" 
-              description="Build an AI-powered resume effortlessly"
-              icon={<Plus className="w-6 h-6" />}
-              link="/resume-builder"
-            />
-            <DashboardCard 
-              title="Manage Resumes" 
-              description="Edit and view your AI-enhanced resumes"
-              icon={<Edit className="w-6 h-6" />}
-              link="/manage-resumes"
-            />
-            <DashboardCard  
-              title="AI Templates" 
-              description="Select from a variety of optimized templates"
-              icon={<FileText className="w-6 h-6" />}
-              link="/choose-template"
-            />
-             <DashboardCard 
-              title="AI Resume Optimizer" 
-              description="Boost your resume with AI insights"
-              icon={<CheckCircle className="w-6 h-6" />}
-              link="/resume-optimizer"
-            />
-            <DashboardCard 
-              title="AI-Powered Interview" 
-              description="Prepare with AI-driven practice questions"
-              icon={<UserCheck className="w-6 h-6" />}
-              link="/IntrviewPrep"
-            />
-            <DashboardCard 
-              title="AI-Powered Mock Interview" 
-              description="Prepare with AI-driven practice questions"
-              icon={<UserCheck className="w-6 h-6" />}
-              link="/intmock"
-            />
-           
-           
+            {dashboardCards.map((card, index) => (
+              <DashboardCard
+                key={index}
+                title={card.title}
+                description={card.description}
+                icon={card.icon}
+                link={card.link}
+              />
+
+            ))}
           </div>
 
           <div className="mb-16">
@@ -228,14 +254,18 @@ interface DashboardCardProps {
 
 function DashboardCard({ title, description, icon, link }: DashboardCardProps) {
   return (
-    <Link href={link} className="block">
-      <div className="bg-gray-900 rounded-lg p-6 hover:bg-gray-800 transition-colors duration-300 group">
+    <Link 
+      href={link} 
+      prefetch={true}
+      className="block transform transition-transform hover:scale-[1.02] duration-200"
+    >
+      <div className="bg-gray-900 rounded-lg p-6 hover:bg-gray-800 transition-colors duration-200">
         <div className="flex items-center justify-between mb-4">
-          <div className="bg-green-500 p-2 rounded-full group-hover:bg-green-400 transition-colors duration-300">{icon}</div>
-          <ChevronRight className="w-5 h-5 text-green-500 group-hover:translate-x-1 transition-transform duration-300" />
+          <div className="bg-green-500 p-2 rounded-full group-hover:bg-green-400 transition-colors duration-200">{icon}</div>
+          <ChevronRight className="w-5 h-5 text-green-500 group-hover:translate-x-1 transition-transform duration-200" />
         </div>
-        <h2 className="text-xl font-semibold mb-2 group-hover:text-green-400 transition-colors duration-300">{title}</h2>
-        <p className="text-gray-400 group-hover:text-gray-300 transition-colors duration-300">{description}</p>
+        <h2 className="text-xl font-semibold mb-2 group-hover:text-green-400 transition-colors duration-200">{title}</h2>
+        <p className="text-gray-400 group-hover:text-gray-300 transition-colors duration-200">{description}</p>
       </div>
     </Link>
   )
@@ -294,3 +324,9 @@ function ContactInfo({ icon, text }: ContactInfoProps) {
     </div>
   )
 }
+
+const transitionClasses = {
+  card: "transition-all duration-200 ease-out",
+  hover: "transition-transform duration-200 ease-out",
+  color: "transition-colors duration-200 ease-out"
+};
