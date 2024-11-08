@@ -3,7 +3,7 @@ import React, { useState, useCallback, useEffect, useRef } from "react"
 import debounce from 'lodash/debounce'
 import Link from 'next/link'
 import JobMatcher from "@/components/JobMatcher"
-import { Save, Sparkles } from "lucide-react"
+import { Save, Sparkles, Trash2 } from "lucide-react"
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import FontSelector, { fonts } from '@/app/fontSelector' 
@@ -25,6 +25,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Download,GripVertical, Moon, Sun, Loader2 } from "lucide-react"
 import dynamic from 'next/dynamic';
 import { toast } from "@/components/ui/use-toast"
+import { Fredoka } from '@next/font/google';
+
+const fredoka = Fredoka({ weight: ['400','600'], subsets: ['latin'] });
 
 
  
@@ -711,7 +714,7 @@ const ResumeBuilder = () => {
                       field={`education.${index}.graduationDate`}
                       onOpenModal={handleOpenSuggestionsModal}
                     />
-                    <Button onClick={() => removeListItem("education", index)}>Remove</Button>
+                    <Button onClick={() => removeListItem("education", index)} variant="destructive">Remove</Button>
                   </div>
                 ))}
                 <Button onClick={() => addListItem("education")}>Add Education</Button>
@@ -776,11 +779,13 @@ const ResumeBuilder = () => {
                           field={`experience.${index}.responsibilities.${respIndex}`}
                           onOpenModal={handleOpenSuggestionsModal}
                         />
-                        <Button onClick={() => removeNestedListItem("experience", index, "responsibilities", respIndex)}>Remove</Button>
+                        <Trash2 className="w-4 h-4 cursor-pointer hover:text-red-500" onClick={() => removeNestedListItem("experience", index, "responsibilities", respIndex)}/>
                       </div>
                     ))}
-                    <Button onClick={() => addNestedListItem("experience", index, "responsibilities")}>Add Responsibility</Button>
-                    <Button onClick={() => removeListItem("experience", index)}>Remove Experience</Button>
+                    <div className="flex space-x-5 mt-4">
+                      <Button onClick={() => addNestedListItem("experience", index, "responsibilities")}>Add Responsibility</Button>
+                      <Button onClick={() => removeListItem("experience", index)} variant="destructive">Remove Experience</Button>
+                    </div>
                   </div>
                 ))}
                 <Button onClick={() => addListItem("experience")}>Add Experience</Button>
@@ -791,53 +796,62 @@ const ResumeBuilder = () => {
       case "projects":
         return (
           <Card>
-            <CardHeader>
-              <CardTitle>Projects</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {(resumeData.projects || []).map((project, index) => (
-                  <div key={index} className="space-y-2">
-                    <GrammarCheckInputWrapper
-                      value={project.name}
-                      onChange={(e) => handleInputChange("projects", index, "name", e.target.value)}
-                      onGrammarCheck={() => handleApiGrammarCheck(`projects.${index}.name`)}
-                      isChecking={checkingField === `projects.${index}.name`}
-                      placeholder="Project Name"
-                      field={`projects.${index}.name`}
-                      onOpenModal={handleOpenSuggestionsModal}
-                    />
-                    <GrammarCheckInputWrapper
-                      value={project.description}
-                      onChange={(e) => handleInputChange("projects", index, "description", e.target.value)}
-                      onGrammarCheck={() => handleApiGrammarCheck(`projects.${index}.description`)}
-                      isChecking={checkingField === `projects.${index}.description`}
-                      placeholder="Project Description"
-                      field={`projects.${index}.description`}
-                      onOpenModal={handleOpenSuggestionsModal}
-                    />
-                    {(project.details || []).map((detail, detailIndex) => (
-                      <div key={detailIndex} className="flex items-center space-x-2">
-                        <GrammarCheckInputWrapper
-                          value={detail}
-                          onChange={(e) => handleInputChange("projects", index, "details", e.target.value, detailIndex)}
-                          onGrammarCheck={() => handleApiGrammarCheck(`projects.${index}.details.${detailIndex}`)}
-                          isChecking={checkingField === `projects.${index}.details.${detailIndex}`}
-                          placeholder={`Detail ${detailIndex + 1}`}
-                          field={`projects.${index}.details.${detailIndex}`}
-                          onOpenModal={handleOpenSuggestionsModal}
-                        />
-                        <Button onClick={() => removeNestedListItem("projects", index, "details", detailIndex)}>Remove</Button>
-                      </div>
-                    ))}
-                    <Button onClick={() => addNestedListItem("projects", index, "details")}>Add Detail</Button>
-                    <Button onClick={() => removeListItem("projects", index)}>Remove Project</Button>
-                  </div>
-                ))}
-                <Button onClick={() => addListItem("projects")}>Add Project</Button>
+      <CardHeader>
+        <CardTitle>Projects</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {(resumeData.projects || []).map((project, index) => (
+            <div key={index} className="space-y-2">
+              <GrammarCheckInputWrapper
+                value={project.name}
+                onChange={(e) => handleInputChange("projects", index, "name", e.target.value)}
+                onGrammarCheck={() => handleApiGrammarCheck(`projects.${index}.name`)}
+                isChecking={checkingField === `projects.${index}.name`}
+                placeholder="Project Name"
+                field={`projects.${index}.name`}
+                onOpenModal={handleOpenSuggestionsModal}
+              />
+              <GrammarCheckInputWrapper
+                value={project.description}
+                onChange={(e) => handleInputChange("projects", index, "description", e.target.value)}
+                onGrammarCheck={() => handleApiGrammarCheck(`projects.${index}.description`)}
+                isChecking={checkingField === `projects.${index}.description`}
+                placeholder="Project Description"
+                field={`projects.${index}.description`}
+                onOpenModal={handleOpenSuggestionsModal}
+              />
+              {(project.details || []).map((detail, detailIndex) => (
+                <div key={detailIndex} className="flex items-center space-x-2">
+                  <GrammarCheckInputWrapper
+                    value={detail}
+                    onChange={(e) => handleInputChange("projects", index, "details", e.target.value, detailIndex)}
+                    onGrammarCheck={() => handleApiGrammarCheck(`projects.${index}.details.${detailIndex}`)}
+                    isChecking={checkingField === `projects.${index}.details.${detailIndex}`}
+                    placeholder={`Detail ${detailIndex + 1}`}
+                    field={`projects.${index}.details.${detailIndex}`}
+                    onOpenModal={handleOpenSuggestionsModal}
+                  />
+                  <Trash2 className="w-4 h-4 cursor-pointer hover:text-red-500" onClick={() => removeNestedListItem("projects", index, "details", detailIndex)}/>
+                </div>
+              ))}
+              <div className="flex space-x-5 mt-4"> {/* Added container with spacing */}
+                <Button onClick={() => addNestedListItem("projects", index, "details")}>
+                  Add Detail
+                </Button>
+                <Button 
+                  onClick={() => removeListItem("projects", index)}
+                  variant="destructive"
+                >
+                  Remove Project
+                </Button>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          ))}
+          <Button onClick={() => addListItem("projects")}>Add Project</Button>
+        </div>
+      </CardContent>
+    </Card>
         );
         case "skills":
           return (
@@ -853,7 +867,7 @@ const ResumeBuilder = () => {
                         <label className="font-medium capitalize">{category}</label>
                         <Button 
                           onClick={() => removeListItem("skills", category)} 
-                          variant="outline" 
+                          variant="destructive" 
                           size="sm"
                         >
                           Remove Category
@@ -993,17 +1007,21 @@ const ResumeBuilder = () => {
                           ))}
                         </div>
                       )}
-                      {section === "experience" && resumeData.experience && (
+                      {section === "experience" && resumeData.experience && resumeData.experience.length > 0 && (
                         <div className="mb-4">
                           <h2 className="text-xl font-semibold mb-2">Experience</h2>
                           {resumeData.experience.map((exp, index) => (
                             <div key={index} className="mb-4">
                               <p className="font-medium">{exp.position || "Position"}</p>
                               <p>{exp.company || "Company"}</p>
-                              <p className="text-sm text-muted-foreground">{exp.startDate || "Start Date"} - {exp.endDate || "End Date"}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {exp.startDate || "Start Date"} - {exp.endDate || "End Date"}
+                              </p>
                               <ul className="list-disc list-inside mt-1">
                                 {(exp.responsibilities || []).map((resp, respIndex) => (
-                                  <li key={respIndex} className="text-sm">{resp || "Responsibility"}</li>
+                                  <li key={respIndex} className="text-sm">
+                                    {resp || "Responsibility"}
+                                  </li>
                                 ))}
                               </ul>
                             </div>
@@ -1060,7 +1078,9 @@ const ResumeBuilder = () => {
             <div className="flex items-center space-x-2">
             <Link href="/" className="flex items-center space-x-2">
         <Sparkles className="w-8 h-8 text-green-400" />
-        <span className="text-2xl font-bold text-white">Dynamic<span className="text-green-400">Draft</span></span>
+        <span className={`text-3xl font-bold text-black ${fredoka.className}`}>
+                Dynamic<span className="text-green-400">Draft</span>
+              </span> 
       </Link>
             </div>
             <div className="flex items-center space-x-4">
