@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
-import { Loader2, Clipboard, CheckCircle2, Sparkles, Save, Plus, X, Send, Play, Pause, Mic, MicOff, BarChart, Book, FileText, Menu, Home, Calendar, Building, GraduationCap, ChevronDown } from 'lucide-react'
+import { Loader2, Clipboard, CheckCircle2, Sparkles, Save, Plus, X, Send, Play, Pause, Mic, MicOff, BarChart, Book, FileText, Menu, Home, Calendar, Building, GraduationCap, ChevronDown, Trash2 } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
@@ -32,10 +32,10 @@ import { UserCircle } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 import { Menu as HeadlessMenu, Transition } from '@headlessui/react' // Rename to avoid conflicts
 import { Fredoka } from '@next/font/google';
+import { SavedSet } from '@prisma/client';
 
 const fredoka = Fredoka({ weight: ['400','600'], subsets: ['latin'] });
 
-// Your existing imports
 
 
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY_INTRV_QUES!)
@@ -248,7 +248,7 @@ export default function EnhancedQuestionGenerator() {
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState('input')
   const [difficulty, setDifficulty] = useState('intermediate')
-  const [savedSets, setSavedSets] = useState([])
+  const [savedSets, setSavedSets] = useState<SavedSet[]>([])
   const [currentSetName, setCurrentSetName] = useState('')
   const [questionTypes, setQuestionTypes] = useState<QuestionType[]>(defaultQuestionTypes)
   const [newQuestionType, setNewQuestionType] = useState({ name: '' })
@@ -287,31 +287,24 @@ export default function EnhancedQuestionGenerator() {
 
 
   useEffect(() => {
-    const savedSetsFromStorage = localStorage.getItem('savedQuestionSets')
-    if (savedSetsFromStorage) {
-      setSavedSets(JSON.parse(savedSetsFromStorage))
-    }
+    fetchSavedSets();
+  }, []);
 
-    const savedQuestionTypes = localStorage.getItem('customQuestionTypes')
-    if (savedQuestionTypes) {
-      setQuestionTypes([...defaultQuestionTypes, ...JSON.parse(savedQuestionTypes)])
+  const fetchSavedSets = useCallback(async () => {
+    try {
+      const response = await fetch('/api/savedSets');
+      if (!response.ok) throw new Error('Failed to fetch sets');
+      const data = await response.json();
+      setSavedSets(data);
+    } catch (error) {
+      console.error('Error fetching saved sets:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch saved sets",
+        variant: "destructive",
+      });
     }
-
-    const savedInterviewResults = localStorage.getItem('interviewResults')
-    if (savedInterviewResults) {
-      setInterviewResults(JSON.parse(savedInterviewResults))
-    }
-
-    const savedSharedSets = localStorage.getItem('sharedQuestionSets')
-    if (savedSharedSets) {
-      setSharedQuestionSets(JSON.parse(savedSharedSets))
-    }
-
-    const savedResources = localStorage.getItem('resources')
-    if (savedResources) {
-      setResources(JSON.parse(savedResources))
-    }
-  }, [])
+  }, []);
 
   useEffect(() => {
     let timer: NodeJS.Timeout
@@ -382,50 +375,81 @@ export default function EnhancedQuestionGenerator() {
     }
   }
 
-  const saveQuestionSet = () => {
+  const saveQuestionSet = async () => {
     if (!currentSetName.trim()) {
       toast({
-        title: "Missing Set Name",
-        description: "Please provide a name for the question set.",
+        title: "Error",
+        description: "Please enter a name for the question set",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
-    const newSet = {
-      name: currentSetName,
-      questions: questions,
-      resume: resume,
-      jobDescription: jobDescription,
-      difficulty: difficulty,
-      industry: selectedIndustry,
+    try {
+      const response = await fetch('/api/savedSets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: currentSetName,
+          questions,
+          resume,
+          jobDescription,
+          difficulty,
+          industry: selectedIndustry,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to save');
+
+      toast({
+        title: "Success",
+        description: "Question set saved successfully",
+      });
+
+      setCurrentSetName('');
+      fetchSavedSets(); // Refresh the list
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save question set",
+        variant: "destructive",
+      });
     }
+  };
 
-    const updatedSets = [...savedSets, newSet]
-    setSavedSets(updatedSets)
-    localStorage.setItem('savedQuestionSets', JSON.stringify(updatedSets))
+  const deleteQuestionSet = async (id: number) => {
+    try {
+      const response = await fetch('/api/savedSets', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
 
-    toast({
-      title: "Question Set Saved",
-      description: `"${currentSetName}" has been saved successfully.`,
-    })
+      if (!response.ok) throw new Error('Failed to delete');
 
-    setCurrentSetName('')
-  }
+      toast({
+        title: "Success",
+        description: "Question set deleted successfully",
+      });
 
-  const loadQuestionSet = (set) => {
-    setQuestions(set.questions)
-    setResume(set.resume)
-    setJobDescription(set.jobDescription)
-    setDifficulty(set.difficulty)
-    setSelectedIndustry(set.industry || '')
-    setActiveTab('questions')
+      fetchSavedSets(); // Refresh the list
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete question set",
+        variant: "destructive",
+      });
+    }
+  };
 
-    toast({
-      title: "Question Set Loaded",
-      description: `"${set.name}" has been loaded successfully.`,
-    })
-  }
+  const loadQuestionSet = (set: any) => {
+    setQuestions(set.questions);
+    setResume(set.resume);
+    setJobDescription(set.jobDescription);
+    setDifficulty(set.difficulty);
+    setSelectedIndustry(set.industry);
+    setActiveTab('questions');
+  };
 
   const evaluateAnswer = async (questionIndex: number) => {
     const question = questions[questionIndex]
@@ -825,60 +849,12 @@ return (
               <Link href="/choose-template" className="text-gray-300 hover:text-white">
                 Templates
               </Link>
-              <Link href="/pricing" className="text-gray-300 hover:text-white">
-                Pricing
+              <Link href="/intmock" className="text-gray-300 hover:text-white">
+                Mock Interview
               </Link>
               <button className="bg-gradient-to-r from-green-400 to-blue-500 text-black px-4 py-2 rounded-full text-sm font-medium hover:from-green-500 hover:to-blue-600 transition-all duration-300">
                 Upgrade
               </button>
-
-              <HeadlessMenu as="div" className="relative inline-block text-left">
-                <div>
-                  <HeadlessMenu.Button className="flex items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                    <UserCircle className="w-8 h-8 text-gray-400" />
-                  </HeadlessMenu.Button>
-                </div>
-                <Transition
-                  as={React.Fragment}
-                  enter="transition ease-out duration-100"
-                  enterFrom="transform opacity-0 scale-95"
-                  enterTo="transform opacity-100 scale-100"
-                  leave="transition ease-in duration-75"
-                  leaveFrom="transform opacity-100 scale-100"
-                  leaveTo="transform opacity-0 scale-95"
-                >
-                  <HeadlessMenu.Items className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 focus:outline-none">
-                    <div className="py-1">
-                      <HeadlessMenu.Item>
-                        {({ active }) => (
-                          <Link
-                            href="/profile"
-                            className={`${
-                              active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
-                            } block px-4 py-2 text-sm`}
-                          >
-                            Profile
-                          </Link>
-                        )}
-                      </HeadlessMenu.Item>
-                    </div>
-                    <div className="py-1">
-                      <HeadlessMenu.Item>
-                        {({ active }) => (
-                          <button
-                            onClick={() => signOut({ redirect: true, callbackUrl: "/" })}
-                            className={`${
-                              active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
-                            } block w-full text-left px-4 py-2 text-sm`}
-                          >
-                            Sign out
-                          </button>
-                        )}
-                      </HeadlessMenu.Item>
-                    </div>
-                  </HeadlessMenu.Items>
-                </Transition>
-              </HeadlessMenu>
             </div>
           </div>
         </div>
@@ -886,38 +862,66 @@ return (
       <div className="absolute top-0 left-0 w-full h-full bg-[url('/noise.png')] opacity-5 pointer-events-none"></div>
       <div className="relative z-10 flex h-screen overflow-hidden">
         {/* Sidebar */}
-        <aside className="w-64 bg-gray-100 p-4 hidden md:block">
-          <h1 className="text-2xl font-bold mb-6 flex items-center">
-            <Sparkles className="w-8 h-8 text-green-400 mr-2" />
-            <span>AI Interview Prep</span>
-          </h1>
-          <nav>
-            <ul className="space-y-2">
-              {[
-                { id: 'input', name: 'Input', icon: Home },
-                { id: 'tips', name: 'Tips', icon: Sparkles },
-                { id: 'questions', name: 'Questions', icon: FileText },
-                { id: 'saved', name: 'Saved Sets', icon: Save },
-                { id: 'progress', name: 'Progress', icon: BarChart },
-                { id: 'resources', name: 'Resources', icon: Book },
-                { id: 'calendar', name: 'Calendar', icon: Calendar},
-                { id: 'company-research', name: 'Company Research', icon: Building },
-                { id: 'learning-path', name: 'Learning Path', icon: GraduationCap },
-              ].map((item) => (
-                <li key={item.id}>
-                  <Button
-                    variant={activeTab === item.id ? 'default' : 'ghost'}
-                    className={`w-full justify-start ${activeTab === item.id ? 'bg-gradient-to-r from-green-400 to-blue-500 text-white' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'}`}
-                    onClick={() => setActiveTab(item.id)}
-                  >
-                    <item.icon className="mr-2 h-4 w-4" />
-                    {item.name}
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </aside>
+        <aside className="w-72 bg-gray-900 border-r border-gray-800 p-6 hidden md:block">
+  <div className="mb-8">
+    <h1 className="text-2xl font-bold mb-2 flex items-center text-white">
+      <span className={`${fredoka.className}`}>AI Interview Prep</span>
+    </h1>
+    <p className="text-sm text-gray-400">Master your interview skills with AI</p>
+  </div>
+   
+  <nav>
+    <ul className="space-y-2">
+      {[
+        { id: 'input', name: 'Input', icon: Home, description: 'Setup your interview' },
+        { id: 'tips', name: 'Tips', icon: Sparkles, description: 'Interview strategies' },
+        { id: 'questions', name: 'Questions', icon: FileText, description: 'Practice questions' },
+        { id: 'saved', name: 'Saved Sets', icon: Save, description: 'Your question sets' },
+        { id: 'progress', name: 'Progress', icon: BarChart, description: 'Track improvement' },
+        { id: 'resources', name: 'Resources', icon: Book, description: 'Study materials' },
+        { id: 'calendar', name: 'Calendar', icon: Calendar, description: 'Schedule practice' },
+        { id: 'company-research', name: 'Research', icon: Building, description: 'Company insights' },
+        { id: 'learning-path', name: 'Learning Path', icon: GraduationCap, description: 'Custom roadmap' },
+      ].map((item) => (
+        <li key={item.id}>
+          <Button
+            variant={activeTab === item.id ? 'default' : 'ghost'}
+            className={`w-full justify-start p-3 ${
+              activeTab === item.id 
+                ? 'bg-gradient-to-r from-green-400 to-blue-500 text-white shadow-lg shadow-green-400/20'
+                : 'text-gray-400 hover:text-white hover:bg-gray-800'
+            } transition-all duration-200 rounded-lg group relative`}
+            onClick={() => setActiveTab(item.id)}
+          >
+            <div className="flex items-center">
+              <item.icon className={`h-5 w-5 mr-3 ${
+                activeTab === item.id 
+                  ? 'text-white' 
+                  : 'text-gray-400 group-hover:text-white'
+              }`} />
+              <div className="flex flex-col items-start">
+                <span className="font-medium">{item.name}</span>
+                <span className={`text-xs ${
+                  activeTab === item.id 
+                    ? 'text-gray-100' 
+                    : 'text-gray-500 group-hover:text-gray-300'
+                }`}>
+                  {item.description}
+                </span>
+              </div>
+            </div>
+            {activeTab === item.id && (
+              <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                <div className="h-2 w-2 rounded-full bg-white"></div>
+              </div>
+            )}
+          </Button>
+        </li>
+      ))}
+    </ul>
+  </nav>
+</aside>
+
 
         {/* Mobile menu */}
         <Sheet>
@@ -958,7 +962,7 @@ return (
         </Sheet>
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto p-8">
+        <main className="flex-1 overflow-y-auto p-8 bg-gray-200">
           <div className="max-w-4xl mx-auto">
             {activeTab === 'input' && (
               <Card>
@@ -1293,27 +1297,47 @@ return (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-2xl">Saved Question Sets</CardTitle>
-                  <CardDescription>Load or manage your saved question sets.</CardDescription>
+                  <CardDescription>Your saved interview question sets</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ScrollArea className="h-[60vh] pr-4">
-                    {savedSets.map((set, index) => (
-                      <Card key={index} className="mb-4">
-                        <CardHeader>
-                          <CardTitle>{set.name}</CardTitle>
-                          <CardDescription>Difficulty: {set.difficulty}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <p>{set.questions.length} questions</p>
-                          {set.industry && <p>Industry: {industrySpecificSets.find(i => i.id === set.industry)?.name || set.industry}</p>}
-                        </CardContent>
-                        <CardFooter>
-                          <Button onClick={() => loadQuestionSet(set)} className="bg-green-500 text-white hover:bg-green-600">
-                            Load Set
-                          </Button>
-                        </CardFooter>
-                      </Card>
-                    ))}
+                    {savedSets.length > 0 ? (
+                      savedSets.map((set: SavedSet) => (
+                        <Card key={set.id} className="mb-4">
+                          <CardHeader>
+                            <CardTitle>{set.name}</CardTitle>
+                            <CardDescription>Difficulty: {set.difficulty}</CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <p>{Array.isArray(set.questions) ? set.questions.length : 0} questions</p>
+                            {set.industry && (
+                              <p>Industry: {industrySpecificSets.find(i => i.id === set.industry)?.name || set.industry}</p>
+                            )}
+                          </CardContent>
+                          <CardFooter className="flex justify-between">
+                            <Button 
+                              onClick={() => loadQuestionSet(set)} 
+                              className="bg-green-500 text-white hover:bg-green-600"
+                            >
+                              Load Set
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              onClick={() => deleteQuestionSet(set.id)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </Button>
+                          </CardFooter>
+                        </Card>
+                      ))
+                    ) : (
+                      <EmptyState
+                        icon={<Save className="h-12 w-12 text-gray-400" />}
+                        title="No Saved Sets"
+                        description="Save your question sets to access them later"
+                      />
+                    )}
                   </ScrollArea>
                 </CardContent>
               </Card>
