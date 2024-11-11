@@ -283,6 +283,9 @@ export default function EnhancedQuestionGenerator() {
   const [companyName, setCompanyName] = useState('')
   const [learningPath, setLearningPath] = useState<string[]>([])
 
+  // Add this state to manage the dialog
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
 
 
 
@@ -401,13 +404,19 @@ export default function EnhancedQuestionGenerator() {
 
       if (!response.ok) throw new Error('Failed to save');
 
+      // Show success toast
       toast({
         title: "Success",
-        description: "Question set saved successfully",
+        description: `Question set "${currentSetName}" saved successfully`,
+        variant: "default",
       });
 
+      // Reset form and close dialog
       setCurrentSetName('');
-      fetchSavedSets(); // Refresh the list
+      setIsDialogOpen(false);
+      
+      // Refresh the saved sets list
+      fetchSavedSets();
     } catch (error) {
       toast({
         title: "Error",
@@ -831,7 +840,7 @@ export default function EnhancedQuestionGenerator() {
 
 
 return (
-    <div className="bg-white min-h-screen text-gray-900 font-sans">
+    <div className="bg-black min-h-screen text-gray-900 font-sans">
         <nav className="border-b bg-black border-gray-800 py-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center">
@@ -862,7 +871,7 @@ return (
       <div className="absolute top-0 left-0 w-full h-full bg-[url('/noise.png')] opacity-5 pointer-events-none"></div>
       <div className="relative z-10 flex h-screen overflow-hidden">
         {/* Sidebar */}
-        <aside className="w-72 bg-gray-900 border-r border-gray-800 p-6 hidden md:block">
+        <aside className="w-72 bg-[#1a1a1a] border-r border-gray-800 p-6 hidden md:block">
   <div className="mb-8">
     <h1 className="text-2xl font-bold mb-2 flex items-center text-white">
       <span className={`${fredoka.className}`}>AI Interview Prep</span>
@@ -962,42 +971,42 @@ return (
         </Sheet>
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto p-8 bg-gray-200">
+        <main className="flex-1 overflow-y-auto p-8">
           <div className="max-w-4xl mx-auto">
             {activeTab === 'input' && (
-              <Card>
+              <Card className='bg-[#1a1a1a] border-gray-800'>
                 <CardHeader>
-                  <CardTitle className="text-2xl">Input Information</CardTitle>
-                  <CardDescription>Provide your resume and job description</CardDescription>
+                  <CardTitle className="text-2xl text-white">Input Information</CardTitle>
+                  <CardDescription className="text-gray-400">Provide your resume and job description</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label htmlFor="resume">Resume</Label>
+                    <Label htmlFor="resume" className="text-gray-200">Resume</Label>
                     <Textarea
                       id="resume"
                       placeholder="Paste your resume here..."
                       value={resume}
                       onChange={(e) => setResume(e.target.value)}
-                      className="h-40"
+                      className="h-40 bg-[#2a2a2a] border-gray-700 text-white placeholder-gray-500"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="jobDescription">Job Description</Label>
+                    <Label htmlFor="jobDescription" className="text-gray-200">Job Description</Label>
                     <Textarea
                       id="jobDescription"
                       placeholder="Paste the job description here..."
                       value={jobDescription}
                       onChange={(e) => setJobDescription(e.target.value)}
-                      className="h-40"
+                      className="h-40 bg-[#2a2a2a] border-gray-700 text-white placeholder-gray-500"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="difficulty">Difficulty Level</Label>
+                    <Label htmlFor="difficulty" className="text-gray-200">Difficulty Level</Label>
                     <Select value={difficulty} onValueChange={setDifficulty}>
-                      <SelectTrigger id="difficulty">
+                      <SelectTrigger id="difficulty" className="bg-[#2a2a2a] border-gray-700 text-white placeholder-gray-500">
                         <SelectValue placeholder="Select difficulty" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-[#2a2a2a] border-gray-700 text-white">
                         <SelectItem value="beginner">Beginner</SelectItem>
                         <SelectItem value="intermediate">Intermediate</SelectItem>
                         <SelectItem value="advanced">Advanced</SelectItem>
@@ -1005,12 +1014,12 @@ return (
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="industry">Industry</Label>
+                    <Label htmlFor="industry" className="text-gray-200">Industry</Label>
                     <Select value={selectedIndustry} onValueChange={setSelectedIndustry}>
-                      <SelectTrigger id="industry">
+                      <SelectTrigger id="industry" className="bg-[#2a2a2a] border-gray-700 text-white placeholder-gray-500">
                         <SelectValue placeholder="Select industry" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-[#2a2a2a] border-gray-700 text-white">
                         <SelectItem value="general">General (No specific industry)</SelectItem>
                         {industrySpecificSets.map((industry) => (
                           <SelectItem key={industry.id} value={industry.id}>{industry.name}</SelectItem>
@@ -1019,7 +1028,7 @@ return (
                     </Select>
                   </div>
                   <div>
-                    <Label>Question Types</Label>
+                    <Label className="text-gray-200">Question Types</Label>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {questionTypes.map((type) => (
                         <Badge key={type.id} variant="secondary">
@@ -1047,7 +1056,7 @@ return (
                           value={newQuestionType.name}
                           onChange={(e) => setNewQuestionType({ ...newQuestionType, name: e.target.value })}
                           placeholder="New question type"
-                          className="flex-grow"
+                          className="flex-grow bg-[#2a2a2a] border-gray-700 text-white placeholder-gray-500"
                         />
                         <Button onClick={() => {
                           if (newQuestionType.name) {
@@ -1067,10 +1076,14 @@ return (
                         </Button>
                       </div>
                     ) : (
-                      <Button onClick={() => setIsAddingQuestionType(true)} variant="outline" className="mt-2">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Question Type
-                      </Button>
+                      <Button
+  onClick={() => setIsAddingQuestionType(true)}
+  className="mt-2 bg-gray-200 text-black hover:bg-gray-300 "
+>
+  <Plus className="mr-2 h-4 w-4" />
+  Add Question Type
+</Button>
+
                     )}
                   </div>
                 </CardContent>
@@ -1097,20 +1110,20 @@ return (
             )}
 
             {activeTab === 'tips' && (
-              <Card>
+              <Card className='bg-[#1a1a1a] border-gray-800'>
                 <CardHeader>
-                  <CardTitle className="text-2xl">Interview Preparation Tips</CardTitle>
+                  <CardTitle className="text-2xl text-white">Interview Preparation Tips</CardTitle>
                   <CardDescription>Get tailored tips based on your resume and the job description</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {interviewTips.length > 0 ? (
-                    <ul className="list-disc list-inside space-y-2">
+                    <ul className="list-disc list-inside space-y-2 text-gray-200">
                       {interviewTips.map((tip, index) => (
                         <li key={index}>{tip}</li>
                       ))}
-                    </ul>
+                    </ul> 
                   ) : (
-                    <p className="text-gray-600">No tips generated yet. Click the button below to generate tips.</p>
+                    <p className="text-gray-400">No tips generated yet. Click the button below to generate tips.</p>
                   )}
                 </CardContent>
                 <CardFooter>
@@ -1263,9 +1276,9 @@ return (
                           <Button onClick={startMockInterview} className="bg-green-500 text-white hover:bg-green-600">
                             Start Mock Interview
                           </Button>
-                          <Dialog>
+                          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                             <DialogTrigger asChild>
-                              <Button variant="outline">
+                              <Button variant="outline" onClick={() => setIsDialogOpen(true)}>
                                 <Save className="mr-2 h-4 w-4" />
                                 Save Question Set
                               </Button>
@@ -1273,14 +1286,19 @@ return (
                             <DialogContent>
                               <DialogHeader>
                                 <DialogTitle>Save Question Set</DialogTitle>
-                                <DialogDescription>Enter a name for this question set to save it for future use.</DialogDescription>
+                                <DialogDescription>
+                                  Enter a name for this question set to save it for future use.
+                                </DialogDescription>
                               </DialogHeader>
                               <Input
                                 value={currentSetName}
                                 onChange={(e) => setCurrentSetName(e.target.value)}
                                 placeholder="Question Set Name"
                               />
-                              <Button onClick={saveQuestionSet} className="w-full bg-green-500 text-white hover:bg-green-600">
+                              <Button 
+                                onClick={saveQuestionSet} 
+                                className="w-full bg-green-500 text-white hover:bg-green-600"
+                              >
                                 Save
                               </Button>
                             </DialogContent>
