@@ -650,8 +650,9 @@ export default function EnhancedQuestionGenerator() {
   
       // Clean the response to remove unwanted characters
       const cleanedText = text
-        .replace(/```json|```/g, '') // Remove code block markers
-        .trim(); // Trim whitespace
+      .replace(/```json\n?|\n?```/g, '') // Remove code blocks
+      .replace(/\*/g, '')                // Remove asterisks
+      .trim();
   
       // Attempt to parse the cleaned response as JSON
       let research;
