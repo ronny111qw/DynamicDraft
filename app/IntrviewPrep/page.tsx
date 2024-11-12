@@ -1689,9 +1689,9 @@ return (
             )}
 
 {activeTab === 'learning-path' && (
-  <Card>
+  <Card className='bg-[#1a1a1a] border-none'>
     <CardHeader>
-      <CardTitle className="text-2xl">Personalized Learning Path</CardTitle>
+      <CardTitle className="text-2xl text-white">Personalized Learning Path</CardTitle>
       <CardDescription>
         Tailored recommendations based on your profile and job requirements
       </CardDescription>
@@ -1836,7 +1836,7 @@ return (
       ) : (
         <EmptyState
           icon={<GraduationCap className="h-12 w-12 text-gray-400" />}
-          title="No Learning Path Generated"
+          title={<span className='text-white'>No Learning Path Generated</span>}
           description="Generate your personalized learning path to get started"
         />
       )}
