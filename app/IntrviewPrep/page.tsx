@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
-import { Loader2, Clipboard, CheckCircle2, Sparkles, Save, Plus, X, Send, Play, Pause, Mic, MicOff, BarChart, Book, FileText, Menu, Home, Calendar, Building, GraduationCap, ChevronDown, Trash2 } from 'lucide-react'
+import { Loader2, Clipboard, CheckCircle2, Sparkles, Save, Plus, X, Send, Play, Pause, Mic, MicOff, BarChart, Book, FileText, Menu, Home, Calendar, Building, GraduationCap, ChevronDown, Trash2, ChartBar } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
@@ -33,6 +33,7 @@ import { signOut } from 'next-auth/react'
 import { Menu as HeadlessMenu, Transition } from '@headlessui/react' // Rename to avoid conflicts
 import { Fredoka } from '@next/font/google';
 import { SavedSet } from '@prisma/client';
+import { format } from 'date-fns';
 
 const fredoka = Fredoka({ weight: ['400','600'], subsets: ['latin'] });
 
@@ -239,6 +240,16 @@ async function generateInterviewTips(resume: string, jobDescription: string) {
     throw new Error('Failed to generate interview tips')
   }
 }
+
+const calculateImprovementRate = (results: any[]) => {
+  if (results.length < 2) return 0;
+  
+  const firstScore = results[0].averageScore;
+  const lastScore = results[results.length - 1].averageScore;
+  
+  const improvementRate = ((lastScore - firstScore) / firstScore) * 100;
+  return Math.round(Math.max(improvementRate, 0));
+};
 
 export default function EnhancedQuestionGenerator() {
   const [resume, setResume] = useState('')
@@ -460,38 +471,47 @@ export default function EnhancedQuestionGenerator() {
     setActiveTab('questions');
   };
 
-  const evaluateAnswer = async (questionIndex: number) => {
-    const question = questions[questionIndex]
-    if (!question.userAnswer) {
-      toast({
-        title: "No Answer Provided",
-        description: "Please provide an answer before requesting evaluation.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    
-
-    setIsEvaluating(true)
+  const handleEvaluateAnswer = async (questionIndex: number) => {
     try {
-      const feedback = await evaluateAnswerWithGemini(question.question, question.userAnswer)
-      const updatedQuestions = [...questions]
-      updatedQuestions[questionIndex] = { ...question, feedback }
-      setQuestions(updatedQuestions)
+      setIsEvaluating(true);
+      const question = questions[questionIndex];
+      const feedback = await evaluateAnswerWithGemini(question.question, question.userAnswer || '');
       
-      // Update total score
-      setTotalScore(prevScore => prevScore + feedback.overallRating)
-    } catch (error) {
+      // Update the question with feedback
+      const updatedQuestions = [...questions];
+      updatedQuestions[questionIndex] = {
+        ...question,
+        feedback
+      };
+      setQuestions(updatedQuestions);
+
+      // Calculate and store the interview result
+      const newResult = {
+        date: format(new Date(), 'yyyy-MM-dd'),
+        averageScore: feedback.overallRating, // Use the actual rating from feedback
+        totalQuestions: questions.length,
+        questionTypes: {
+          [question.type]: feedback.overallRating // Store the actual score
+        }
+      };
+
+      setInterviewResults(prev => [...prev, newResult]);
+      
       toast({
-        title: "Error Evaluating Answer",
-        description: "There was an error evaluating your answer. Please try again.",
+        title: "Answer Evaluated",
+        description: "Your answer has been evaluated successfully.",
+      });
+    } catch (error) {
+      console.error('Error evaluating answer:', error);
+      toast({
+        title: "Error",
+        description: "Failed to evaluate answer. Please try again.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsEvaluating(false)
+      setIsEvaluating(false);
     }
-  }
+  };
 
   const startMockInterview = () => {
     setIsMockInterviewMode(true)
@@ -879,6 +899,9 @@ return (
     </h1>
     <p className="text-sm text-gray-400">Master your interview skills with AI</p>
   </div>
+
+   <div className="mt-0 mb-4 border-b border-gray-700/60" />
+
    
   <nav>
     <ul className="space-y-2">
@@ -899,7 +922,7 @@ return (
             className={`w-full justify-start p-3 ${
               activeTab === item.id 
                 ? 'bg-gradient-to-r from-green-400 to-blue-500 text-white shadow-lg shadow-green-400/20'
-                : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                : 'text-gray-400 hover:text-white hover:bg-[#2a2a2a]'
             } transition-all duration-200 rounded-lg group relative`}
             onClick={() => setActiveTab(item.id)}
           >
@@ -954,6 +977,9 @@ return (
                   { id: 'saved', name: 'Saved Sets', icon: Save },
                   { id: 'progress', name: 'Progress', icon: BarChart },
                   { id: 'resources', name: 'Resources', icon: Book },
+                  { id: 'calendar', name: 'Calendar', icon: Calendar },
+                  { id: 'company-research', name: 'Research', icon: Building },
+                  { id: 'learning-path', name: 'Learning Path', icon: GraduationCap },
                 ].map((item) => (
                   <li key={item.id}>  
                     <Button
@@ -1008,9 +1034,9 @@ return (
                         <SelectValue placeholder="Select difficulty" />
                       </SelectTrigger>
                       <SelectContent className="bg-[#2a2a2a] border-gray-700 text-white">
-                        <SelectItem value="beginner">Beginner</SelectItem>
-                        <SelectItem value="intermediate">Intermediate</SelectItem>
-                        <SelectItem value="advanced">Advanced</SelectItem>
+                        <SelectItem value="beginner" className='focus:bg-[#3a3a3a] focus:text-white'>Beginner</SelectItem>
+                        <SelectItem value="intermediate" className='focus:bg-[#3a3a3a] focus:text-white'>Intermediate</SelectItem>
+                        <SelectItem value="advanced" className='focus:bg-[#3a3a3a] focus:text-white'>Advanced</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1021,9 +1047,11 @@ return (
                         <SelectValue placeholder="Select industry" />
                       </SelectTrigger>
                       <SelectContent className="bg-[#2a2a2a] border-gray-700 text-white">
-                        <SelectItem value="general">General (No specific industry)</SelectItem>
+                        <SelectItem value="general" className='focus:bg-[#3a3a3a] focus:text-white'>General (No specific industry)</SelectItem>
                         {industrySpecificSets.map((industry) => (
-                          <SelectItem key={industry.id} value={industry.id}>{industry.name}</SelectItem>
+                          <SelectItem key={industry.id} value={industry.id}
+                          className='focus:bg-[#3a3a3a] focus:text-white'
+                          >{industry.name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -1081,7 +1109,7 @@ return (
   onClick={() => setIsAddingQuestionType(true)}
   className="mt-2 bg-gray-200 text-black hover:bg-gray-300 "
 >
-  <Plus className="mr-2 h-4 w-4" />
+  <Plus className="h-4 w-4" />
   Add Question Type
 </Button>
 
@@ -1181,7 +1209,7 @@ return (
                         className="h-32"
                       />
                       <div className="flex justify-between items-center">
-                        <Button onClick={() => evaluateAnswer(currentQuestionIndex)} disabled={isEvaluating || !questions[currentQuestionIndex].userAnswer} className="bg-green-500 text-white hover:bg-green-600">
+                        <Button onClick={() => handleEvaluateAnswer(currentQuestionIndex)} disabled={isEvaluating || !questions[currentQuestionIndex].userAnswer} className="bg-green-500 text-white hover:bg-green-600">
                           {isEvaluating ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1252,7 +1280,7 @@ return (
                                 updatedQuestions[index] = { ...q, userAnswer: answer }
                                 setQuestions(updatedQuestions)
                               }}
-                              onEvaluate={() => evaluateAnswer(index)}
+                              onEvaluate={() => handleEvaluateAnswer(index)}
                               isEvaluating={isEvaluating}
                             />
                           ))}
@@ -1313,24 +1341,24 @@ return (
             )}
 
             {activeTab === 'saved' && (
-              <Card>
+              <Card className='bg-[#1a1a1a] border-gray-800'>
                 <CardHeader>
-                  <CardTitle className="text-2xl">Saved Question Sets</CardTitle>
+                  <CardTitle className="text-2xl text-white">Saved Question Sets</CardTitle>
                   <CardDescription>Your saved interview question sets</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ScrollArea className="h-[60vh] pr-4">
                     {savedSets.length > 0 ? (
                       savedSets.map((set: SavedSet) => (
-                        <Card key={set.id} className="mb-4">
+                        <Card key={set.id} className="mb-4 bg-[#2a2a2a] border-gray-700">
                           <CardHeader>
-                            <CardTitle>{set.name}</CardTitle>
-                            <CardDescription>Difficulty: {set.difficulty}</CardDescription>
+                            <CardTitle className='text-white text-lg'>{set.name}</CardTitle>
+                            <CardDescription className='text-gray-400'>Difficulty: {set.difficulty}</CardDescription>
                           </CardHeader>
                           <CardContent>
-                            <p>{Array.isArray(set.questions) ? set.questions.length : 0} questions</p>
+                            <p className='text-gray-400'>{Array.isArray(set.questions) ? set.questions.length : 0} questions</p>
                             {set.industry && (
-                              <p>Industry: {industrySpecificSets.find(i => i.id === set.industry)?.name || set.industry}</p>
+                              <p className='text-gray-400'>Industry: {industrySpecificSets.find(i => i.id === set.industry)?.name || set.industry}</p>
                             )}
                           </CardContent>
                           <CardFooter className="flex justify-between">
@@ -1341,10 +1369,10 @@ return (
                               Load Set
                             </Button>
                             <Button 
-                              variant="outline" 
+                              className='bg-red-500 text-white hover:bg-red-600'
                               onClick={() => deleteQuestionSet(set.id)}
                             >
-                              <Trash2 className="h-4 w-4 mr-2" />
+                              <Trash2 className="h-4 w-4" />
                               Delete
                             </Button>
                           </CardFooter>
@@ -1353,8 +1381,8 @@ return (
                     ) : (
                       <EmptyState
                         icon={<Save className="h-12 w-12 text-gray-400" />}
-                        title="No Saved Sets"
-                        description="Save your question sets to access them later"
+                        title= {<span className='text-white'>No Saved Sets</span>}
+                        description={<span className='text-gray-400'>Save your question sets to access them later</span>}
                       />
                     )}
                   </ScrollArea>
@@ -1363,47 +1391,230 @@ return (
             )}
 
             {activeTab === 'progress' && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-2xl">Progress Tracking</CardTitle>
-                  <CardDescription>Track your performance over multiple mock interviews.</CardDescription>
+              <Card className="bg-[#1a1a1a] border-gray-800">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="text-2xl text-white">Progress Tracking</CardTitle>
+                    <CardDescription className="text-gray-400">Comprehensive analysis of your interview performance</CardDescription>
+                  </div>
+                  
+                  {/* Reset Progress Dialog */}
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button 
+                        variant="destructive" 
+                        className="bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400"
+                      >
+                        Reset Progress
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="bg-[#2a2a2a] border-gray-700">
+                      <DialogHeader>
+                        <DialogTitle className="text-white">Reset Progress</DialogTitle>
+                        <DialogDescription className="text-gray-400">
+                          This will permanently delete all your interview results and progress data. This action cannot be undone.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="flex justify-end space-x-2 mt-4">
+                        <Button 
+                          variant="outline" 
+                          className="border-gray-700 text-gray-400 hover:bg-gray-800"
+                          onClick={() => {
+                            const dialogClose = document.querySelector('[data-dialog-close]') as HTMLButtonElement;
+                            dialogClose?.click();
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button 
+                          variant="destructive"
+                          className="bg-red-500 hover:bg-red-600"
+                          onClick={() => {
+                            setInterviewResults([]);
+                            localStorage.removeItem('interviewResults'); // Add this if you're using localStorage
+                            const dialogClose = document.querySelector('[data-dialog-close]') as HTMLButtonElement;
+                            dialogClose?.click();
+                            toast({
+                              title: "Progress Reset",
+                              description: "All progress data has been cleared.",
+                              variant: "destructive",
+                            });
+                          }}
+                        >
+                          Reset All Data
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </CardHeader>
+
                 <CardContent>
                   {interviewResults.length > 0 ? (
-                    <div className="space-y-6">
-                      <div className="h-80">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={interviewResults}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="date" />
-                            <YAxis domain={[0, 5]} />
-                            <Tooltip />
-                            <Legend />
-                            <Line type="monotone" dataKey="averageScore" stroke="#10B981" name="Average Score" />
-                          </LineChart>
-                        </ResponsiveContainer>
+                    <div className="space-y-8">
+                      {/* Overall Stats */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <Card className="bg-[#2a2a2a] border-gray-700">
+                          <CardContent className="pt-6">
+                            <div className="text-center">
+                              <h3 className="text-white text-sm font-medium">Total Interviews</h3>
+                              <div className="mt-2 text-3xl font-bold text-white">{interviewResults.length}</div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                        <Card className="bg-[#2a2a2a] border-gray-700">
+                          <CardContent className="pt-6">
+                            <div className="text-center">
+                              <h3 className="text-white text-sm font-medium">Average Score</h3>
+                              <div className="mt-2 text-3xl font-bold text-emerald-500">
+                                {(interviewResults.reduce((acc, result) => acc + result.averageScore, 0) / interviewResults.length).toFixed(1)}/5
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                        <Card className="bg-[#2a2a2a] border-gray-700">
+                          <CardContent className="pt-6">
+                            <div className="text-center">
+                              <h3 className="text-white text-sm font-medium">Improvement Rate</h3>
+                              <div className="mt-2 text-3xl font-bold text-amber-500">
+                                {calculateImprovementRate(interviewResults)}%
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
                       </div>
-                      <div>
-                        <h3 className="text-lg font-semibold mb-2">Performance by Question Type</h3>
-                        {Object.entries(
-                          interviewResults.reduce((acc, result) => {
-                            Object.entries(result.questionTypes).forEach(([type, score]) => {
-                              if (!acc[type]) acc[type] = []
-                              acc[type].push(score)
-                            })
-                            return acc
-                          }, {} as { [key: string]: number[] })
-                        ).map(([type, scores]) => (
-                          <div key={type} className="mb-4">
-                            <h4 className="font-medium">{type}</h4>
-                            <Progress value={(scores.reduce((a, b) => a + b, 0) / scores.length / 5) * 100} className="h-2" />
-                            <p className="text-sm text-gray-600">Average: {(scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2)}/5</p>
+
+                      {/* Score Trend */}
+                      <Card className="bg-[#2a2a2a] border-gray-700">
+                        <CardHeader>
+                          <CardTitle className="text-lg text-white">Performance Trend</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="h-80">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <LineChart data={interviewResults}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                                <XAxis 
+                                  dataKey="date" 
+                                  stroke="#9CA3AF"
+                                  tick={{ fill: '#9CA3AF' }}
+                                />
+                                <YAxis 
+                                  domain={[0, 5]} 
+                                  stroke="#9CA3AF"
+                                  tick={{ fill: '#9CA3AF' }}
+                                />
+                                <Tooltip 
+                                  contentStyle={{ 
+                                    backgroundColor: '#374151',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    color: '#fff'
+                                  }}
+                                />
+                                <Legend />
+                                <Line 
+                                  type="monotone" 
+                                  dataKey="averageScore" 
+                                  stroke="#10B981" 
+                                  name="Average Score"
+                                  strokeWidth={2}
+                                />
+                              </LineChart>
+                            </ResponsiveContainer>
                           </div>
-                        ))}
-                      </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Question Type Performance */}
+                      <Card className="bg-[#2a2a2a] border-gray-700">
+                        <CardHeader>
+                          <CardTitle className="text-lg text-white">Performance by Question Type</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-6">
+                            {Object.entries(
+                              interviewResults.reduce((acc, result) => {
+                                Object.entries(result.questionTypes).forEach(([type, score]) => {
+                                  if (!acc[type]) acc[type] = []
+                                  acc[type].push(score)
+                                })
+                                return acc
+                              }, {} as { [key: string]: number[] })
+                            ).map(([type, scores]) => {
+                              const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+                              const performance = getPerformanceLabel(avgScore);
+                              
+                              return (
+                                <div key={type} className="space-y-2">
+                                  <div className="flex justify-between items-center">
+                                    <h4 className="text-white font-medium">{type}</h4>
+                                    <span className={performance.color}>
+                                      {avgScore.toFixed(2)}/5
+                                    </span>
+                                  </div>
+                                  <Progress 
+                                    value={calculateProgress(scores)} 
+                                    className="h-2 bg-gray-700"
+                                    indicatorClassName={avgScore >= 4 ? 'bg-emerald-500' : 
+                                                      avgScore >= 3 ? 'bg-green-500' : 
+                                                      avgScore >= 2 ? 'bg-amber-500' : 'bg-red-500'}
+                                  />
+                                  <div className="flex justify-between text-xs text-gray-400">
+                                    <span>Lowest: {Math.min(...scores).toFixed(1)}</span>
+                                    <span>Highest: {Math.max(...scores).toFixed(1)}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Recent Interviews */}
+                      <Card className="bg-[#2a2a2a] border-gray-700">
+                        <CardHeader>
+                          <CardTitle className="text-lg text-white">Recent Interviews</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <ScrollArea className="h-[300px]"> {/* Add fixed height ScrollArea */}
+                            <div className="space-y-4 pr-4"> {/* Add right padding for scrollbar */}
+                              {interviewResults.slice(-5).reverse().map((result, index) => {
+                                const performance = getPerformanceLabel(result.averageScore);
+                                return (
+                                  <div 
+                                    key={index} 
+                                    className="flex items-center justify-between p-4 rounded-lg bg-[#1a1a1a] border border-gray-700"
+                                  >
+                                    <div>
+                                      <p className="text-white">
+                                        {format(new Date(result.date), 'MMM dd, yyyy')}
+                                      </p>
+                                      <p className="text-sm text-gray-400">
+                                        Questions: {result.totalQuestions}
+                                      </p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-lg font-semibold text-emerald-500">
+                                        {result.averageScore.toFixed(1)}/5
+                                      </p>
+                                      <p className={`text-sm ${performance.color}`}>
+                                        {performance.text}
+                                      </p>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </ScrollArea>
+                        </CardContent>
+                      </Card>
                     </div>
                   ) : (
-                    <p className="text-gray-600">No interview data available yet. Complete a mock interview to see your progress.</p>
+                    <EmptyState
+                      icon={<ChartBar className="h-12 w-12 text-gray-500" />}
+                      title={<span className="text-white">No Interview Data</span>}
+                      description={<span className="text-gray-400">Complete a mock interview to see your progress tracking</span>}
+                    />
                   )}
                 </CardContent>
               </Card>
@@ -1421,29 +1632,29 @@ return (
             {activeTab === 'calendar' && <InterviewScheduler />}
 
             {activeTab === 'company-research' && (
-              <Card>
+              <Card className='bg-[#1a1a1a] border-none'>
                 <CardHeader>
-                  <CardTitle className="text-2xl">Company Research</CardTitle>
+                  <CardTitle className="text-2xl text-white">Company Research</CardTitle>
                   <CardDescription>Learn about your target company</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {companyResearch ? (
                     <div className="space-y-4">
                       <div>
-                        <h3 className="text-lg font-semibold">Products/Services</h3>
-                        <p>{companyResearch.products_services}</p>
+                        <h3 className="text-lg font-semibold text-white">Products/Services</h3>
+                        <p className="text-gray-300">{companyResearch.products_services}</p>
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold">Recent News</h3>
-                        <p>{companyResearch.recent_news}</p>
+                        <h3 className="text-lg font-semibold text-white">Recent News</h3>
+                        <p className="text-gray-300">{companyResearch.recent_news}</p>
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold">Company Culture</h3>
-                        <p>{companyResearch.culture_values}</p>
+                        <h3 className="text-lg font-semibold text-white">Company Culture</h3>
+                        <p className="text-gray-300">{companyResearch.culture_values}</p>
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold">Key Competitors</h3>
-                        <p>{companyResearch.key_competitors}</p>
+                        <h3 className="text-lg font-semibold text-white">Key Competitors</h3>
+                        <p className="text-gray-300">{companyResearch.key_competitors}</p>
                       </div>
                     </div>
                   ) : (
@@ -1452,6 +1663,7 @@ return (
                         placeholder="Enter company name"
                         value={companyName}
                         onChange={(e) => setCompanyName(e.target.value)}
+                        className="text-white border-gray-700 placeholder:text-gray-400"
                       />
                       <Button 
                         onClick={researchCompany} 
@@ -1749,3 +1961,17 @@ function QuestionCard({ question, index, questionTypes, onAnswerChange, onEvalua
     </AccordionItem>
   )
 }
+
+const getPerformanceLabel = (score: number) => {
+  if (score >= 4.5) return { text: 'Excellent', color: 'text-emerald-500' };
+  if (score >= 3.5) return { text: 'Very Good', color: 'text-green-500' };
+  if (score >= 2.5) return { text: 'Good', color: 'text-amber-500' };
+  if (score >= 1.5) return { text: 'Fair', color: 'text-orange-500' };
+  return { text: 'Needs Improvement', color: 'text-red-500' };
+};
+
+const calculateProgress = (scores: number[]) => {
+  if (!scores.length) return 0;
+  const average = scores.reduce((a, b) => a + b, 0) / scores.length;
+  return (average / 5) * 100; // Convert to percentage
+};
