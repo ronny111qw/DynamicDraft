@@ -98,14 +98,22 @@ export default function InterviewScheduler() {
   }
 
   const handleTogglePreparationTask = (interviewId: string, taskId: string) => {
-    setInterviews(interviews.map(interview => 
+    const updatedInterviews = interviews.map(interview => 
       interview.id === interviewId ? {
         ...interview,
         preparationTasks: interview.preparationTasks.map(task => 
           task.id === taskId ? { ...task, completed: !task.completed } : task
         )
       } : interview
-    ))
+    )
+    
+    setInterviews(updatedInterviews)
+    
+    // Update the selectedInterview state with the modified interview
+    const updatedInterview = updatedInterviews.find(interview => interview.id === interviewId)
+    if (updatedInterview) {
+      setSelectedInterview(updatedInterview)
+    }
   }
 
   const renderCalendar = () => {
@@ -129,15 +137,16 @@ export default function InterviewScheduler() {
       const dayInterviews = interviews.filter(interview => isSameDay(parseISO(interview.date), day))
       days.push(
         <div
-          className={`p-2 text-center cursor-pointer hover:bg-gray-100 rounded-full ${
+          className={`p-2 text-center cursor-pointer hover:bg-[#333333] rounded-full ${
             !isSameMonth(day, currentMonth) ? 'text-gray-400' : ''
           } ${
             isSameDay(day, selectedDate)
-              ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+              ? 'bg-[#1a1a1a] text-white'
               : ''
           }`}
           key={day.toISOString()}
           onClick={() => setSelectedDate(cloneDay)}
+          
         >
           {formattedDate}
           {dayInterviews.length > 0 && (
@@ -165,20 +174,20 @@ export default function InterviewScheduler() {
       )
     }
 
-    return <div className="bg-background rounded-lg shadow p-4">{rows}</div>
+    return <div className="bg-[#2a2a2a] rounded-lg shadow p-4 text-white">{rows}</div>
   }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <Card>
+      <Card className="bg-[#1a1a1a] border-gray-800">
         <CardHeader>
-          <CardTitle className="text-2xl">Interview Calendar</CardTitle>
-          <CardDescription>Schedule and manage your upcoming interviews</CardDescription>
+          <CardTitle className="text-2xl text-white">Interview Calendar</CardTitle>
+          <CardDescription className="text-gray-400">Schedule and manage your upcoming interviews</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 text-white">
             <Button
-              variant="outline"
+              className="bg-gray-200 bg-transparent"
               onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
             >
               <ChevronLeft className="h-4 w-4" />
@@ -187,13 +196,13 @@ export default function InterviewScheduler() {
               {format(currentMonth, 'MMMM yyyy')}
             </h2>
             <Button
-              variant="outline"
+              className="bg-gray-200 bg-transparent"
               onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4"  />
             </Button>
           </div>
-          <div className="grid grid-cols-7 gap-2 mb-2">
+          <div className="grid grid-cols-7 gap-2 mb-2 ">
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
               <div key={day} className="text-center font-semibold text-muted-foreground">
                 {day}
@@ -203,60 +212,64 @@ export default function InterviewScheduler() {
           {renderCalendar()}
           <Dialog open={isAddingInterview} onOpenChange={setIsAddingInterview}>
             <DialogTrigger asChild>
-              <Button className="w-full mt-4">
+              <Button className="w-full mt-4" variant='secondary'>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Interview
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="bg-[#1a1a1a] border-gray-800">
               <DialogHeader>
-                <DialogTitle>Schedule New Interview</DialogTitle>
+                <DialogTitle className="text-white">Schedule New Interview</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="company">Company</Label>
+                  <Label htmlFor="company" className="text-gray-200">Company</Label>
                   <Input
                     id="company"
+                    className="text-white border-gray-700"
                     value={newInterview.company || ''}
                     onChange={(e) => setNewInterview({ ...newInterview, company: e.target.value })}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="position">Position</Label>
+                  <Label htmlFor="position" className="text-gray-200">Position</Label>
                   <Input
                     id="position"
+                    className="text-white border-gray-700"
                     value={newInterview.position || ''}
                     onChange={(e) => setNewInterview({ ...newInterview, position: e.target.value })}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="date">Date</Label>
+                  <Label htmlFor="date" className="text-gray-200">Date</Label>
                   <Input
                     id="date"
+                    className="text-white border-gray-700"
                     type="date"
                     value={format(selectedDate, 'yyyy-MM-dd')}
                     onChange={(e) => setSelectedDate(new Date(e.target.value))}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="time">Time</Label>
+                  <Label htmlFor="time" className="text-gray-200">Time</Label>
                   <Input
                     id="time"
                     type="time"
+                    className="text-white border-gray-700"
                     value={newInterview.time || ''}
                     onChange={(e) => setNewInterview({ ...newInterview, time: e.target.value })}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="type">Interview Type</Label>
+                  <Label htmlFor="type" className="text-gray-200">Interview Type</Label>
                   <Select
                     value={newInterview.type || 'onsite'}
                     onValueChange={(value) => setNewInterview({ ...newInterview, type: value })}
                   >
-                    <SelectTrigger id="type">
+                    <SelectTrigger id="type" className="text-white border-gray-700">
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-[#2a2a2a] border-gray-700 text-white">
                       <SelectItem value="onsite">On-site</SelectItem>
                       <SelectItem value="virtual">Virtual</SelectItem>
                       <SelectItem value="phone">Phone</SelectItem>
@@ -264,29 +277,30 @@ export default function InterviewScheduler() {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="notes">Notes</Label>
+                  <Label htmlFor="notes" className="text-gray-200">Notes</Label>
                   <Textarea
                     id="notes"
+                    className="text-white border-gray-700"
                     value={newInterview.notes || ''}
                     onChange={(e) => setNewInterview({ ...newInterview, notes: e.target.value })}
                   />
                 </div>
-                <Button onClick={handleAddInterview}>Schedule Interview</Button>
+                <Button onClick={handleAddInterview} className="bg-gray-200 text-black hover:bg-gray-300">Schedule Interview</Button>
               </div>
             </DialogContent>
           </Dialog>
-        </CardContent>
+        </CardContent>  
       </Card>
 
       <div className="space-y-6">
-        <Card>
+        <Card className="bg-[#1a1a1a] border-gray-800">
           <CardHeader>
-            <CardTitle className="text-2xl">Interviews</CardTitle>
-            <CardDescription>Manage your interview schedule and preparation</CardDescription>
+            <CardTitle className="text-2xl text-white">Interviews</CardTitle>
+            <CardDescription className="text-gray-400">Manage your interview schedule and preparation</CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as InterviewStatus)}>
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-3 text-white bg-[#2a2a2a]">
                 <TabsTrigger value="scheduled">Scheduled</TabsTrigger>
                 <TabsTrigger value="completed">Completed</TabsTrigger>
                 <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
@@ -323,13 +337,13 @@ export default function InterviewScheduler() {
         </Card>
 
         {selectedInterview && (
-          <Card>
+          <Card className="bg-[#1a1a1a] border-gray-800">
             <CardHeader>
-              <CardTitle className="text-2xl">Interview Preparation</CardTitle>
-              <CardDescription>Prepare for your interview with {selectedInterview.company}</CardDescription>
+              <CardTitle className="text-2xl text-white">Interview Preparation</CardTitle>
+              <CardDescription className="text-gray-400">Prepare for your interview with {selectedInterview.company}</CardDescription>
             </CardHeader>
             <CardContent>
-              <h3 className="text-lg font-semibold mb-2">Preparation Tasks</h3>
+              <h3 className="text-lg font-semibold mb-2 text-white">Preparation Tasks</h3>
               {selectedInterview.preparationTasks.map(task => (
                 <div key={task.id} className="flex items-center space-x-2 mb-2">
                   <Checkbox
@@ -339,7 +353,7 @@ export default function InterviewScheduler() {
                   />
                   <label
                     htmlFor={task.id}
-                    className={`text-sm ${task.completed ? 'line-through text-muted-foreground' : ''}`}
+                    className={`text-sm ${task.completed ? 'line-through text-muted-foreground' : 'text-white'}`}
                   >
                     {task.task}
                   </label>
@@ -369,12 +383,12 @@ function InterviewList({ interviews, onDelete, onStatusChange, onToggleReminder,
       {interviews
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
         .map((interview) => (
-          <Card key={interview.id} className="mb-4 overflow-hidden">
+          <Card key={interview.id} className="mb-4 overflow-hidden bg-[#2a2a2a] border-gray-700">
             <CardContent className="p-4">
               <div className="flex justify-between items-start">
                 <div>
-                  <h3 className="text-lg font-semibold">{interview.company}</h3>
-                  <p className="text-muted-foreground">{interview.position}</p>
+                  <h3 className="text-lg font-semibold text-white">{interview.company}</h3>
+                  <p className="text-gray-400">{interview.position}</p>
                 </div>
                 <div className="flex space-x-2">
                   <TooltipProvider>
@@ -384,7 +398,7 @@ function InterviewList({ interviews, onDelete, onStatusChange, onToggleReminder,
                           variant="ghost"
                           size="icon"
                           onClick={() => onToggleReminder(interview.id)}
-                          className={interview.reminder ? 'text-blue-500' : 'text-muted-foreground'}
+                          className={interview.reminder ? 'text-blue-500' : 'text-gray-400'}
                         >
                           <Bell className="h-4 w-4" />
                         </Button>
@@ -414,21 +428,21 @@ function InterviewList({ interviews, onDelete, onStatusChange, onToggleReminder,
                 </div>
               </div>
               <div className="flex items-center mt-2 space-x-4">
-                <div className="flex items-center text-muted-foreground">
+                <div className="flex items-center text-gray-400">
                   <CalendarIcon className="mr-1 h-4 w-4" />
                   {format(parseISO(interview.date), 'MMM d, yyyy')}
                 </div>
-                <div className="flex items-center text-muted-foreground">
+                <div className="flex items-center text-gray-400">
                   <Clock className="mr-1 h-4 w-4" />
                   {interview.time}
                 </div>
-                <div className="flex items-center text-muted-foreground">
+                <div className="flex items-center text-gray-400">
                   <Building className="mr-1 h-4 w-4" />
                   {interview.type}
                 </div>
               </div>
               {interview.notes && (
-                <p className="mt-2 text-muted-foreground text-sm">{interview.notes}</p>
+                <p className="mt-2 text-gray-400 text-sm">{interview.notes}</p>
               )}
               <div className="mt-4 flex justify-between items-center">
                 <div className="space-x-2">
@@ -461,6 +475,7 @@ function InterviewList({ interviews, onDelete, onStatusChange, onToggleReminder,
                   size="sm"
                   variant="link"
                   onClick={() => onSelectInterview(interview)}
+                  className='text-white'
                 >
                   Prepare
                 </Button>
