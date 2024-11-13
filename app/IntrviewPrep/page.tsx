@@ -755,15 +755,15 @@ export default function EnhancedQuestionGenerator() {
           {
             "skill": "Skill Name",
             "explanation": "Detailed explanation focusing on 2024 industry relevance",
-            "importance": "high|medium|low",
+            "importance": "High|Medium|Low",
             "timeToLearn": "Realistic time estimate",
             "resources": [
               {
                 "title": "Resource name (include year if applicable)",
                 "url": "Active, verified URL",
-                "type": "documentation|course|video|community|github",
-                "difficulty": "beginner|intermediate|advanced",
-                "cost": "free|paid|freemium",
+                "type": "Documentation|Course|Video|Community|Github",
+                "difficulty": "Beginner|Intermediate|Advanced",
+                "cost": "Free|Paid|Freemium",
                 "platform": "Platform name (YouTube, Udemy, etc.)"
               }
             ],
@@ -1178,35 +1178,35 @@ return (
             )}
 
             {activeTab === 'questions' && (
-              <Card>
+              <Card className="bg-[#1a1a1a] border-gray-800">
                 <CardHeader>
-                  <CardTitle className="text-2xl">Generated Interview Questions</CardTitle>
-                  <CardDescription>Review, answer, and get feedback on these tailored interview questions.</CardDescription>
+                  <CardTitle className="text-2xl text-white">Generated Interview Questions</CardTitle>
+                  <CardDescription className="text-gray-400">Review, answer, and get feedback on these tailored interview questions.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {isMockInterviewMode ? (
                     <div className="space-y-4">
-                      <h3 className="text-xl font-bold">Mock Interview Mode</h3>
-                      <div className="flex justify-between items-center text-gray-600">
+                      <h3 className="text-xl font-bold text-white">Mock Interview Mode</h3>
+                      <div className="flex justify-between items-center text-gray-400">
                         <p>Question {currentQuestionIndex + 1} of {questions.length}</p>
                         <p>Time: {formatTime(interviewTimer)} / {formatTime(interviewDuration)}</p>
                       </div>
                       <Progress value={(interviewTimer / interviewDuration) * 100} className="w-full" />
                       <Progress value={((currentQuestionIndex + 1) / questions.length) * 100} className="w-full" />
-                      <Card>
+                      <Card className="bg-[#2a2a2a] border-gray-700">
                         <CardContent className="pt-6">
-                          <p className="text-lg font-medium">{questions[currentQuestionIndex].question}</p>
+                          <p className="text-lg font-medium text-white">{questions[currentQuestionIndex].question}</p>
                         </CardContent>
                       </Card>
                       <Textarea
                         value={questions[currentQuestionIndex].userAnswer || ''}
                         onChange={(e) => {
-                          const  updatedQuestions = [...questions]
+                          const updatedQuestions = [...questions]
                           updatedQuestions[currentQuestionIndex] = { ...updatedQuestions[currentQuestionIndex], userAnswer: e.target.value }
                           setQuestions(updatedQuestions)
                         }}
                         placeholder="Type your answer here..."
-                        className="h-32"
+                        className="h-32 bg-[#2a2a2a] border-gray-700 text-white placeholder-gray-500"
                       />
                       <div className="flex justify-between items-center">
                         <Button onClick={() => handleEvaluateAnswer(currentQuestionIndex)} disabled={isEvaluating || !questions[currentQuestionIndex].userAnswer} className="bg-green-500 text-white hover:bg-green-600">
@@ -1705,18 +1705,18 @@ return (
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
-              className="p-4 rounded-lg border border-gray-200 dark:border-gray-700"
+              className="p-4 rounded-lg border border-gray-700"
             >
               {/* Skill Header */}
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-xl font-semibold">{item.skill}</h3>
-                <Badge>
+                <h3 className="text-xl font-semibold text-white">{item.skill}</h3>
+                <Badge variant='secondary'>
                   {item.importance || 'medium'} priority
                 </Badge>
               </div>
               
               {/* Explanation */}
-              <p className="text-gray-600 dark:text-gray-300 mb-2">
+              <p className="text-gray-300 mb-2">
                 {item.explanation}
               </p>
 
@@ -1728,7 +1728,7 @@ return (
               {/* Resources Collapsible */}
               <Collapsible className="w-full mb-4">
                 <CollapsibleTrigger asChild>
-                  <Button variant="outline" className="w-full flex items-center justify-between">
+                  <Button className="w-full flex items-center justify-between bg-[#2a2a2a] hover:bg-[#2a2a2a]">
                     <span>Learning Resources</span>
                     <ChevronDown className="h-4 w-4" />
                   </Button>
@@ -1742,11 +1742,11 @@ return (
                             href={resource.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-blue-500 hover:underline"
+                            className="text-gray-300 hover:underline"
                           >
                             {resource.title}
                           </a>
-                          <Badge variant="outline" className="text-xs">
+                          <Badge variant="secondary" className="text-xs">
                             {resource.type}
                           </Badge>
                         </div>
@@ -1754,9 +1754,9 @@ return (
                           <Badge variant="secondary" className="text-xs">
                             {resource.difficulty}
                           </Badge>
-                          <Badge variant={resource.cost === 'free' ? 'success' : 'default'} className="text-xs">
-                            {resource.cost}
-                          </Badge>
+                          <Badge variant="secondary" className="text-xs">
+  {resource.cost}
+</Badge>
                         </div>
                       </div>
                     ))}
@@ -1768,7 +1768,7 @@ return (
               {item.practiceProjects && item.practiceProjects.length > 0 && (
                 <Collapsible className="w-full mb-4">
                   <CollapsibleTrigger asChild>
-                    <Button variant="outline" className="w-full flex items-center justify-between">
+                    <Button className="w-full flex items-center justify-between bg-[#2a2a2a] hover:bg-[#2a2a2a]">
                       <span>Practice Projects</span>
                       <ChevronDown className="h-4 w-4" />
                     </Button>
@@ -1777,13 +1777,13 @@ return (
                     <div className="space-y-4 pl-4">
                       {item.practiceProjects.map((project, idx) => (
                         <div key={idx} className="border-l-2 border-gray-200 pl-4 py-2">
-                          <h4 className="font-medium">{project.name}</h4>
-                          <p className="text-sm text-gray-600 dark:text-gray-300">
+                          <h4 className="font-medium text-white">{project.name}</h4>
+                          <p className="text-sm text-gray-400">
                             {project.description}
                           </p>
                           <div className="mt-2 flex flex-wrap gap-2">
                             {project.techStack.map((tech, techIdx) => (
-                              <Badge key={techIdx} variant="outline" className="text-xs">
+                              <Badge key={techIdx} variant="secondary" className="text-xs">
                                 {tech}
                               </Badge>
                             ))}
@@ -1802,7 +1802,7 @@ return (
               {item.communities && item.communities.length > 0 && (
                 <Collapsible className="w-full">
                   <CollapsibleTrigger asChild>
-                    <Button variant="outline" className="w-full flex items-center justify-between">
+                    <Button className="w-full flex items-center justify-between bg-[#2a2a2a] hover:bg-[#2a2a2a]">
                       <span>Learning Communities</span>
                       <ChevronDown className="h-4 w-4" />
                     </Button>
@@ -1816,11 +1816,11 @@ return (
                               href={community.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-blue-500 hover:underline"
+                              className="text-gray-300 hover:underline"
                             >
                               {community.name}
                             </a>
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="secondary" className="text-xs">
                               {community.platform}
                             </Badge>
                           </div>
@@ -1886,8 +1886,8 @@ function QuestionCard({ question, index, questionTypes, onAnswerChange, onEvalua
   }
 
   return (
-    <AccordionItem value={`item-${index}`}>
-      <AccordionTrigger>
+    <AccordionItem value={`item-${index}`} className="border-gray-700">
+      <AccordionTrigger className="text-white hover:text-gray-300">
         <div className="flex items-center space-x-2">
           <Badge variant="secondary">
             {questionType.name}
@@ -1896,18 +1896,23 @@ function QuestionCard({ question, index, questionTypes, onAnswerChange, onEvalua
         </div>
       </AccordionTrigger>
       <AccordionContent className="space-y-2">
-        <p className="text-lg font-medium">{question.question}</p>
-        <p className="text-sm text-gray-600">
+        <p className="text-lg font-medium text-white">{question.question}</p>
+        <p className="text-sm text-gray-400">
           <span className="font-semibold">Rationale:</span> {question.rationale}
         </p>
         <Textarea
           value={question.userAnswer || ''}
           onChange={(e) => onAnswerChange(e.target.value)}
           placeholder="Type your answer here..."
-          className="h-32"
+          className="h-32 bg-[#2a2a2a] border-gray-700 text-white placeholder-gray-500"
         />
         <div className="flex justify-between">
-          <Button variant="outline" size="sm" onClick={copyToClipboard}>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={copyToClipboard}
+            className="border-gray-700 text-gray-300 hover:text-white hover:bg-[#2a2a2a]"
+          >
             {isCopied ? (
               <>
                 <CheckCircle2 className="mr-2 h-4 w-4" />
@@ -1920,7 +1925,11 @@ function QuestionCard({ question, index, questionTypes, onAnswerChange, onEvalua
               </>
             )}
           </Button>
-          <Button onClick={onEvaluate} disabled={isEvaluating || !question.userAnswer} className="bg-green-500 text-white hover:bg-green-600">
+          <Button 
+            onClick={onEvaluate} 
+            disabled={isEvaluating || !question.userAnswer} 
+            className="bg-green-500 text-white hover:bg-green-600"
+          >
             {isEvaluating ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1935,19 +1944,19 @@ function QuestionCard({ question, index, questionTypes, onAnswerChange, onEvalua
           </Button>
         </div>
         {question.feedback && (
-          <Card className="mt-4">
+          <Card className="mt-4 bg-[#2a2a2a] border-gray-700">
             <CardHeader>
-              <CardTitle>Feedback</CardTitle>
+              <CardTitle className="text-white">Feedback</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="text-gray-300">
               <p className="mb-2">Overall Rating: {question.feedback.overallRating}/5</p>
-              <h5 className="font-semibold mb-1">Strengths:</h5>
+              <h5 className="font-semibold mb-1 text-white">Strengths:</h5>
               <ul className="list-disc list-inside mb-2">
                 {question.feedback.strengths.map((strength, index) => (
                   <li key={index}>{strength}</li>
                 ))}
               </ul>
-              <h5 className="font-semibold mb-1">Areas for Improvement:</h5>
+              <h5 className="font-semibold mb-1 text-white">Areas for Improvement:</h5>
               <ul className="list-disc list-inside mb-2">
                 {question.feedback.areasForImprovement.map((area, index) => (
                   <li key={index}>{area}</li>
