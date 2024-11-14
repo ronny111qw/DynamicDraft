@@ -77,7 +77,7 @@ export default function Dashboard() {
     {
       title: "Interview Prep",
       description: "Prepare for your next interview",
-      icon: <MessageCircle className="w-6 h-6" />,
+      icon: <UserCheck className="w-6 h-6" />,
       link: "/IntrviewPrep"
     },
 
