@@ -169,7 +169,7 @@ const ResumeManager: React.FC = () => {
           </h1>
           
           <div className="mb-8">
-            <Card className="bg-gray-900 border-gray-800">
+            <Card className="bg-[#1a1a1a] border-gray-800">
               <CardContent className="pt-6">
                 {isLoading ? (
                   <div className="text-center py-8">
