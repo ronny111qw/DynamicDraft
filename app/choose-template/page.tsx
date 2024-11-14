@@ -36,18 +36,18 @@ export default function ChooseTemplate() {
   })
 
   const TemplatePreview = ({ name }: { name: string }) => (
-    <div className="h-48 bg-gray-800 rounded-t-lg p-4 flex flex-col">
-      <div className="w-full h-6 bg-gray-700 rounded mb-2"></div>
+    <div className="h-48 bg-[#2a2a2a] rounded-t-lg p-4 flex flex-col">
+      <div className="w-full h-6 bg-[#1a1a1a] rounded mb-2"></div>
       <div className="flex-1 flex">
         <div className="w-1/3 pr-2">
-          <div className="w-full h-4 bg-gray-700 rounded mb-2"></div>
-          <div className="w-3/4 h-4 bg-gray-700 rounded mb-2"></div>
-          <div className="w-full h-4 bg-gray-700 rounded"></div>
+          <div className="w-full h-4 bg-[#1a1a1a] rounded mb-2"></div>
+          <div className="w-3/4 h-4 bg-[#1a1a1a] rounded mb-2"></div>
+          <div className="w-full h-4 bg-[#1a1a1a] rounded"></div>
         </div>
         <div className="w-2/3 pl-2">
-          <div className="w-full h-4 bg-gray-700 rounded mb-2"></div>
-          <div className="w-full h-4 bg-gray-700 rounded mb-2"></div>
-          <div className="w-3/4 h-4 bg-gray-700 rounded"></div>
+          <div className="w-full h-4 bg-[#1a1a1a] rounded mb-2"></div>
+          <div className="w-full h-4 bg-[#1a1a1a] rounded mb-2"></div>
+          <div className="w-3/4 h-4 bg-[#1a1a1a] rounded"></div>
         </div>
       </div>
       <div className="mt-auto text-center text-gray-600 font-semibold">{name}</div>
@@ -94,15 +94,15 @@ export default function ChooseTemplate() {
                 placeholder="Search templates..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-gray-900 text-white pl-10 pr-4 py-2 rounded-full focus:outline-none focus:ring-2 focus:ring-green-400"
+                className="bg-[#1a1a1a] text-white pl-10 pr-4 py-2 rounded-full focus:outline-none focus:ring-2 focus:ring-green-400"
               />
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             </div>
             <Select onValueChange={(value) => setFilter(value)}>
-              <SelectTrigger className="w-[180px] bg-gray-900 text-white border-gray-700">
+              <SelectTrigger className="w-[180px] bg-[#1a1a1a] text-white border-gray-700">
                 <SelectValue placeholder="Filter by category" />
               </SelectTrigger>
-              <SelectContent className="bg-gray-900 text-white border-gray-700">
+              <SelectContent className="bg-[#1a1a1a] text-white border-gray-700">
                 <SelectItem value="all">All Categories</SelectItem>
                 <SelectItem value="professional">Professional</SelectItem>
                 <SelectItem value="creative">Creative</SelectItem>
@@ -136,7 +136,7 @@ export default function ChooseTemplate() {
                   exit={{ opacity: 0, y: -20 }}
                   layout
                 >
-                  <Card className="bg-gray-900 border-gray-800 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-green-400/10">
+                  <Card className="bg-[#1a1a1a] border-gray-800 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-green-400/10">
                     <CardHeader className="p-0">
                       <TemplatePreview name={template.name} />
                     </CardHeader>
