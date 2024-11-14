@@ -179,7 +179,7 @@ const UserGuidanceButton = () => (
         How to Use
       </Button>
     </DialogTrigger>
-    <DialogContent className="max-w-2xl max-h-[90vh]">
+    <DialogContent className="max-w-2xl max-h-[90vh] bg-[#1a1a1a] text-white border-gray-800">
       <div className="flex justify-between items-start">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
@@ -202,14 +202,14 @@ const UserGuidanceButton = () => (
         <div className="space-y-6 py-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Do's Section */}
-            <Card className="border-green-100">
+            <Card className="bg-[#2a2a2a] border-gray-800">
               <CardHeader>
-                <CardTitle className="text-green-600 flex items-center gap-2">
+                <CardTitle className="text-green-400 flex items-center gap-2">
                   <CheckCircle2 className="h-5 w-5" />
                   Do's
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-3 text-gray-300">
                 {[
                   'Paste complete resume text with formatting',
                   'Include full job description',
@@ -229,14 +229,14 @@ const UserGuidanceButton = () => (
             </Card>
 
             {/* Don'ts Section */}
-            <Card className="border-red-100">
+            <Card className="bg-[#2a2a2a] border-gray-800">
               <CardHeader>
-                <CardTitle className="text-red-600 flex items-center gap-2">
+                <CardTitle className="text-red-400 flex items-center gap-2">
                   <XCircle className="h-5 w-5" />
                   Don'ts
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-3 text-gray-300">
                 {[
                   'Skip sections of your resume',
                   'Use incomplete job descriptions',
@@ -257,9 +257,9 @@ const UserGuidanceButton = () => (
           </div>
 
           {/* Pro Tips */}
-          <Card className="bg-blue-50/50 border-blue-100">
+          <Card className="bg-[#2a2a2a] border-gray-800">
             <CardHeader>
-              <CardTitle className="text-blue-600 flex items-center gap-2">
+              <CardTitle className="text-blue-400 flex items-center gap-2">
                 <Sparkles className="h-5 w-5" />
                 Pro Tips
               </CardTitle>
@@ -292,9 +292,9 @@ const UserGuidanceButton = () => (
                     description: 'Tailor content for each job application'
                   }
                 ].map((tip, i) => (
-                  <div key={i} className="p-3 bg-white rounded-lg">
-                    <h4 className="font-semibold text-blue-700">{tip.title}</h4>
-                    <p className="text-sm text-gray-600">{tip.description}</p>
+                  <div key={i} className="p-3 bg-[#1a1a1a] rounded-lg">
+                    <h4 className="font-semibold text-blue-400">{tip.title}</h4>
+                    <p className="text-sm text-gray-400">{tip.description}</p>
                   </div>
                 ))}
               </div>
@@ -302,14 +302,14 @@ const UserGuidanceButton = () => (
           </Card>
 
           {/* Additional Resources */}
-          <Card className="border-purple-100">
+          <Card className="bg-[#2a2a2a] border-gray-800">
             <CardHeader>
-              <CardTitle className="text-purple-600 flex items-center gap-2">
+              <CardTitle className="text-purple-400 flex items-center gap-2">
                 <BookOpen className="h-5 w-5" />
                 Additional Resources
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
                   {
@@ -329,9 +329,9 @@ const UserGuidanceButton = () => (
                     description: 'ATS-optimized resume templates'
                   }
                 ].map((resource, i) => (
-                  <div key={i} className="p-3 bg-purple-50/50 rounded-lg">
-                    <h4 className="font-semibold text-purple-700">{resource.title}</h4>
-                    <p className="text-sm text-gray-600">{resource.description}</p>
+                  <div key={i} className="p-3 bg-[#1a1a1a] rounded-lg">
+                    <h4 className="font-semibold text-purple-400">{resource.title}</h4>
+                    <p className="text-sm text-gray-400">{resource.description}</p>
                   </div>
                 ))}
               </div>
@@ -493,7 +493,7 @@ export default function ResumeOptimizer() {
     if (!section.content) return null;
   
     if (typeof section.content === 'string') {
-      return <p className="text-gray-700">{section.content}</p>;
+      return <p className="text-gray-300">{section.content}</p>;
     }
     
     if (Array.isArray(section.content)) {
@@ -505,7 +505,7 @@ export default function ResumeOptimizer() {
               return (
                 <li key={i} className="flex items-start gap-2">
                   <CheckCircle className="h-4 w-4 text-green-500 mt-1 flex-shrink-0" />
-                  <span className="text-gray-700">{item}</span>
+                  <span className="text-gray-300">{item}</span>
                 </li>
               );
             }
@@ -544,7 +544,7 @@ export default function ResumeOptimizer() {
         <div className="space-y-4">
           {Object.entries(section.content).map(([key, values]) => (
             <div key={key} className="space-y-2">
-              <h4 className="font-semibold text-gray-900 capitalize">
+              <h4 className="font-semibold text-white capitalize">
                 {key.replace(/_/g, ' ')}
               </h4>
               {Array.isArray(values) && (
@@ -552,7 +552,7 @@ export default function ResumeOptimizer() {
                   {values.map((value, i) => (
                     <li key={i} className="flex items-start gap-2">
                       <CheckCircle className="h-4 w-4 text-green-500 mt-1 flex-shrink-0" />
-                      <span className="text-gray-700">{value}</span>
+                      <span className="text-gray-300">{value}</span>
                     </li>
                   ))}
                 </ul>
@@ -567,45 +567,49 @@ export default function ResumeOptimizer() {
   };
 
   const MetricsCard = ({ title, value, description, icon: Icon, threshold = 70 }) => (
-    <Card className={`transition-all hover:shadow-md ${value >= threshold ? 'border-green-200' : 'border-yellow-200'}`}>
+    <Card className="bg-[#2a2a2a] border-gray-800 transition-all hover:shadow-md">
       <CardHeader>
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <div className={`p-2 rounded-full ${value >= threshold ? 'bg-green-100' : 'bg-yellow-100'}`}>
-              <Icon className={`h-4 w-4 ${value >= threshold ? 'text-green-600' : 'text-yellow-600'}`} />
+            <div className={`p-2 rounded-full ${
+              value >= threshold ? 'bg-green-900' : 'bg-yellow-900'
+            }`}>
+              <Icon className={`h-4 w-4 ${
+                value >= threshold ? 'text-green-400' : 'text-yellow-400'
+              }`} />
             </div>
             <div>
-              <CardTitle className="text-lg">{title}</CardTitle>
-              <CardDescription>{description}</CardDescription>
+              <CardTitle className="text-lg text-white">{title}</CardTitle>
+              <CardDescription className="text-gray-400">{description}</CardDescription>
             </div>
           </div>
-          <div className="text-2xl font-bold">{value}%</div>
+          <div className="text-2xl font-bold text-white">{value}%</div>
         </div>
         <Progress 
           value={value} 
-          className={`mt-4 h-2 ${value >= threshold ? 'bg-green-100' : 'bg-yellow-100'}`}
-          indicatorClassName={value >= threshold ? 'bg-green-500' : 'bg-yellow-500'}
+          className={`mt-4 h-2 ${value >= threshold ? 'bg-green-900' : 'bg-yellow-900'}`}
+          indicatorClassName={value >= threshold ? 'bg-green-400' : 'bg-yellow-400'}
         />
       </CardHeader>
     </Card>
   );
 
   const PriorityImprovementsSection = ({ improvements }: { improvements: any[] }) => (
-    <Card className="bg-gradient-to-br from-gray-50 to-white border border-gray-200">
+    <Card className="bg-[#2a2a2a] border-gray-800">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="p-2 bg-blue-100 rounded-full">
-              <Zap className="h-5 w-5 text-blue-600" />
+            <div className="p-2 bg-blue-900 rounded-full">
+              <Zap className="h-5 w-5 text-blue-400" />
             </div>
             <div>
-              <CardTitle>Priority Improvements</CardTitle>
-              <CardDescription>Critical changes to improve your resume</CardDescription>
+              <CardTitle className="text-white">Priority Improvements</CardTitle>
+              <CardDescription className="text-gray-400">Critical changes to improve your resume</CardDescription>
             </div>
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="text-gray-300">
         <div className="space-y-4">
           {improvements.map((improvement, index) => (
             <motion.div
@@ -616,27 +620,27 @@ export default function ResumeOptimizer() {
               className={`
                 flex items-start gap-3 p-4 rounded-lg border
                 ${improvement.priority === 'high' 
-                  ? 'bg-red-50 border-red-100' 
+                  ? 'bg-red-900/20 border-red-900/30' 
                   : improvement.priority === 'medium'
-                  ? 'bg-yellow-50 border-yellow-100'
-                  : 'bg-green-50 border-green-100'}
+                  ? 'bg-yellow-900/20 border-yellow-900/30'
+                  : 'bg-green-900/20 border-green-900/30'}
               `}
             >
               <div className={`
                 p-2 rounded-full flex-shrink-0
                 ${improvement.priority === 'high' 
-                  ? 'bg-red-100' 
+                  ? 'bg-red-900/30' 
                   : improvement.priority === 'medium'
-                  ? 'bg-yellow-100'
-                  : 'bg-green-100'}
+                  ? 'bg-yellow-900/30'
+                  : 'bg-green-900/30'}
               `}>
                 <AlertCircle className={`
                   h-4 w-4
                   ${improvement.priority === 'high' 
-                    ? 'text-red-600' 
+                    ? 'text-red-400' 
                     : improvement.priority === 'medium'
-                    ? 'text-yellow-600'
-                    : 'text-green-600'}
+                    ? 'text-yellow-400'
+                    : 'text-green-400'}
                 `} />
               </div>
               <div>
@@ -652,8 +656,8 @@ export default function ResumeOptimizer() {
                     {improvement.priority} priority
                   </Badge>
                 </div>
-                <p className="font-medium text-gray-900">{improvement.change}</p>
-                <p className="text-sm text-gray-600 mt-1">{improvement.reason}</p>
+                <p className="font-medium text-white">{improvement.change}</p>
+                <p className="text-sm text-gray-400 mt-1">{improvement.reason}</p>
               </div>
             </motion.div>
           ))}
@@ -688,13 +692,13 @@ export default function ResumeOptimizer() {
       </div>
       </div>
 
-    <div className="container mx-auto p-4 space-y-6">
+    <div className="container mx-auto p-4 space-y-6 bg-[#1a1a1a]">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold text-white">
             AI Resume Optimizer
           </h1>
-          <p className="text-gray-500">Optimize your resume for ATS and hiring managers</p>
+          <p className="text-gray-400">Optimize your resume for ATS and hiring managers</p>
         </div>
         <div className="flex items-center gap-4">
           <UserGuidanceButton />
@@ -712,12 +716,12 @@ export default function ResumeOptimizer() {
 
        
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card>
+            <Card className="bg-[#2a2a2a] border-gray-800">
               <CardHeader>
-                <CardTitle>Resume Text</CardTitle>
-                <CardDescription>Paste your resume text here</CardDescription>
+                <CardTitle className="text-white">Resume Text</CardTitle>
+                <CardDescription className="text-gray-400">Paste your resume text here</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 text-white">
                 <Textarea
                   name="resumeText"
                   value={inputs.resumeText}
@@ -730,12 +734,12 @@ export default function ResumeOptimizer() {
             </Card>
             
             <div className="space-y-4">
-              <Card>
+              <Card className="bg-[#2a2a2a] border-gray-800">
                 <CardHeader>
-                  <CardTitle>Job Description</CardTitle>
-                  <CardDescription>Paste the job description here</CardDescription>
+                  <CardTitle className="text-white">Job Description</CardTitle>
+                  <CardDescription className="text-gray-400">Paste the job description here</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="text-white">
                   <Textarea
                     name="jobDescription"
                     value={inputs.jobDescription}
@@ -753,7 +757,8 @@ export default function ResumeOptimizer() {
             <Button 
               onClick={analyzeResume} 
               disabled={isAnalyzing}
-              className="w-full md:w-auto"
+              className="w-full md:w-auto mt-4"
+              variant="secondary"
             >
               {isAnalyzing ? (
                 <>
@@ -813,9 +818,9 @@ export default function ResumeOptimizer() {
           {/* Detailed Analysis Sections */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {analysis.filter(section => section.title !== "Priority Improvements").map((section, index) => (
-              <Card key={index}>
+              <Card key={index} className="bg-[#2a2a2a] border-gray-800">
                 <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
+                  <CardTitle className="flex items-center justify-between text-white">
                     {section.title}
                     {section.impact && (
                       <Badge variant={section.impact === 'high' ? 'destructive' : 
@@ -825,13 +830,13 @@ export default function ResumeOptimizer() {
                     )}
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="text-gray-300">
                   {renderAnalysisContent(section)}
                 </CardContent>
                 {section.confidence && (
                   <CardFooter>
                     <div className="w-full">
-                      <div className="flex justify-between text-sm mb-1">
+                      <div className="flex justify-between text-sm mb-1 text-gray-400">
                         <span>Confidence</span>
                         <span>{section.confidence}%</span>
                       </div>
@@ -844,29 +849,37 @@ export default function ResumeOptimizer() {
           </div>
 
           {/* Custom Suggestions Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Tailored Recommendations</CardTitle>
-              <CardDescription>Specific suggestions for your target role and industry</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {Object.entries(customSuggestions).map(([key, suggestions]) => (
-                  <div key={key} className="space-y-2">
-                    <h4 className="font-semibold capitalize">{key.replace('_', ' ')}</h4>
-                    <ul className="space-y-1">
-                      {suggestions.map((suggestion, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm">
-                          <CheckCircle className="h-4 w-4 text-green-500 mt-1" />
-                          {suggestion}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+         {/* Custom Suggestions Section */}
+<Card className="bg-[#2a2a2a] border-gray-800">
+  <CardHeader>
+    <div className="flex items-center gap-2">
+      <div className="p-2 bg-purple-900 rounded-full">
+        <Target className="h-5 w-5 text-purple-400" />
+      </div>
+      <div>
+        <CardTitle className="text-white">Tailored Recommendations</CardTitle>
+        <CardDescription className="text-gray-400">Specific suggestions for your target role and industry</CardDescription>
+      </div>
+    </div>
+  </CardHeader>
+  <CardContent>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {Object.entries(customSuggestions).map(([key, suggestions]) => (
+        <div key={key} className="space-y-2">
+          <h4 className="font-semibold text-white capitalize">{key.replace('_', ' ')}</h4>
+          <ul className="space-y-1">
+            {suggestions.map((suggestion, i) => (
+              <li key={i} className="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-green-500 mt-1 flex-shrink-0" />
+                <span className="text-gray-300 text-sm">{suggestion}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  </CardContent>
+</Card>
         </div>
       )}
     </div>
