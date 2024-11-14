@@ -1073,27 +1073,27 @@ const ResumeBuilder = () => {
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-background text-foreground">
-        <header className="sticky top-0 z-10 bg-background border-b">
-          <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-            <div className="flex items-center space-x-2">
-            <Link href="/" className="flex items-center space-x-2">
-        <Sparkles className="w-8 h-8 text-green-400" />
-        <span className={`text-3xl font-bold text-black ${fredoka.className}`}>
-                Dynamic<span className="text-green-400">Draft</span>
-              </span> 
-      </Link>
-            </div>
-            <div className="flex items-center space-x-4">
-              <TooltipProvider> 
-                <Tooltip> 
-                  <TooltipTrigger asChild>
-                    <Button variant="outline" size="icon" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-                      <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                      <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                      <span className="sr-only">Toggle theme</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <Button
+        <header className="sticky top-0 z-10 bg-black border-b border-gray-800">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center py-4">
+              <Link href="/" className="flex items-center space-x-2">
+                <Sparkles className="w-8 h-8 text-green-400" />
+                <span className={`text-3xl font-bold text-white ${fredoka.className}`}>
+                  Dynamic<span className="text-green-400">Draft</span>
+                </span>
+              </Link>
+
+              <div className="flex items-center space-x-6">
+                <Link href="/dashboard" className="text-gray-300 hover:text-white">
+                  Dashboard
+                </Link>
+                <Link href="/choose-template" className="text-gray-300 hover:text-white">
+                  Templates
+                </Link>
+                <Link href="/intmock" className="text-gray-300 hover:text-white">
+                  Mock Interview
+                </Link>
+                <Button
                 onClick={resetToDefault}
                 className="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-md transition duration-300 ease-in-out flex items-center justify-center"
               >
@@ -1130,6 +1130,15 @@ const ResumeBuilder = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+       <TooltipProvider> 
+                <Tooltip> 
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="icon" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+                      <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                      <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                      <span className="sr-only">Toggle theme</span>
+                    </Button>
+                  </TooltipTrigger>
                   <TooltipContent>
                     <p>Toggle theme</p>
                   </TooltipContent>
@@ -1152,9 +1161,10 @@ const ResumeBuilder = () => {
                   </>
                 )}
               </Button>
-
-            </div> 
+              </div>
+            </div>
           </div>
+          <div className="absolute top-0 left-0 w-full h-full bg-[url('/noise.png')] opacity-5 pointer-events-none"></div>
         </header>
         <main className="container mx-auto px-4 py-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
