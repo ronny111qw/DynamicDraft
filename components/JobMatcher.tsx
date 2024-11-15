@@ -13,8 +13,21 @@ interface JobMatcherProps {
 
 interface MatchResult {
   score: number;
-  presentKeywords: string[];
-  missingKeywords: string[];
+  presentKeywords: {
+    technical: string[];
+    soft: string[];
+    industry: string[];
+  };
+  missingKeywords: {
+    critical: string[];
+    preferred: string[];
+  };
+  gapAnalysis: {
+    experience: string;
+    education: string;
+    technical: string[];
+    certifications: string[];
+  };
   suggestions: {
     skills: string[];
     experience: string[];
@@ -22,6 +35,13 @@ interface MatchResult {
     projects: string[];
   };
 }
+
+// Add this utility function for score colors
+const getScoreColor = (score: number): string => {
+  if (score >= 80) return 'text-green-400';
+  if (score >= 60) return 'text-yellow-400';
+  return 'text-red-400';
+};
 
 export default function JobMatcher({ resumeData }: JobMatcherProps) {
   const [jobDescription, setJobDescription] = useState('');
@@ -53,40 +73,61 @@ export default function JobMatcher({ resumeData }: JobMatcherProps) {
     }
   };
 
-  const renderKeywords = (keywords: string[], isPresent: boolean) => (
-    <div className={`mt-2 ${isPresent ? 'text-green-600' : 'text-red-600'}`}>
-      {keywords.map((keyword, index) => (
-        <span key={index} className="inline-block bg-gray-200 rounded-full px-3 py-1 text-sm font-semibold mr-2 mb-2">
-          {keyword}
-        </span>
-      ))}
-    </div>
-  );
+  const renderKeywords = (keywords: { [key: string]: string[] } | undefined, isPresent: boolean) => {
+    if (!keywords) return null;
+    
+    return (
+      <div className="space-y-4">
+        {Object.entries(keywords).map(([category, words]) => (
+          <div key={category}>
+            <h5 className="font-medium capitalize mb-2 text-gray-300">{category}:</h5>
+            <div className="flex flex-wrap gap-2">
+              {words.map((word, index) => (
+                <span 
+                  key={index} 
+                  className={`inline-block rounded-full px-3 py-1 text-sm font-semibold 
+                    ${isPresent 
+                      ? 'bg-green-900/50 text-green-300 border border-green-700' 
+                      : 'bg-red-900/50 text-red-300 border border-red-700'}`}
+                >
+                  {word}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   const renderSectionSuggestions = (section: string, suggestions: string[]) => (
     <div className="mt-4">
-      <h5 className="font-semibold capitalize">{section}:</h5>
-      <ul className="list-disc list-inside">
+      <h5 className="font-semibold capitalize text-gray-300">{section}:</h5>
+      <ul className="list-disc list-inside text-gray-300">
         {suggestions.map((suggestion, index) => (
-          <li key={index}>{suggestion}</li>
+          <li key={index} className="text-gray-400">{suggestion}</li>
         ))}
       </ul>
     </div>
   );
 
   return (
-    <Card className="mt-6">
-      <CardHeader>
-        <CardTitle className="text-2xl font-bold">Job Description Matcher</CardTitle>
+    <Card className="mt-6 bg-[#1a1a1a] border-2 border-gray-800 shadow-xl">
+      <CardHeader className="border-b border-gray-800">
+        <CardTitle className="text-2xl font-bold text-white">Job Description Matcher</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-6">
         <Textarea
           placeholder="Paste the job description here..."
           value={jobDescription}
           onChange={(e) => setJobDescription(e.target.value)}
-          className="mb-4 h-32"
+          className="mb-4 h-32 bg-[#2a2a2a] text-gray-200 border-gray-700 focus:border-gray-600 placeholder:text-gray-500"
         />
-        <Button onClick={analyzeJobMatch} disabled={isAnalyzing || !jobDescription.trim()}>
+        <Button 
+          onClick={analyzeJobMatch} 
+          disabled={isAnalyzing || !jobDescription.trim()}
+          className="bg-green-600 hover:bg-green-700 text-white disabled:bg-gray-700"
+        >
           {isAnalyzing ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -96,25 +137,61 @@ export default function JobMatcher({ resumeData }: JobMatcherProps) {
             'Analyze Job Match'
           )}
         </Button>
-        {error && <p className="text-red-500 mt-2">{error}</p>}
+        {error && <p className="text-red-400 mt-2">{error}</p>}
         {matchResults && (
-          <div className="mt-6">
-            <h3 className="text-xl font-semibold mb-2">Match Results:</h3>
-            <div className="flex items-center mb-4">
-              <Progress value={matchResults.score} className="w-full mr-4" />
-              <span className="text-lg font-semibold">{matchResults.score}%</span>
+          <div className="mt-6 space-y-6">
+            <h3 className="text-xl font-semibold text-white">Match Results:</h3>
+            <div className="flex items-center gap-4 bg-[#2a2a2a] p-4 rounded-lg border border-gray-800">
+              <Progress 
+                value={matchResults.score} 
+                className="w-full bg-gray-700"
+                indicatorClassName={`${getScoreColor(matchResults.score)} bg-current transition-all`}
+              />
+              <span className={`text-lg font-semibold whitespace-nowrap ${getScoreColor(matchResults.score)}`}>
+                {matchResults.score}%
+              </span>
             </div>
             
-            <h4 className="font-semibold mt-4 mb-2">Keywords Present in Resume:</h4>
-            {renderKeywords(matchResults.presentKeywords, true)}
+            <div className="bg-[#2a2a2a] p-4 rounded-lg border border-gray-800">
+              <h4 className="font-semibold mb-3 text-white">Keywords Present in Resume:</h4>
+              {renderKeywords(matchResults.presentKeywords, true)}
+            </div>
             
-            <h4 className="font-semibold mt-4 mb-2">Keywords Missing from Resume:</h4>
-            {renderKeywords(matchResults.missingKeywords, false)}
+            <div className="bg-[#2a2a2a] p-4 rounded-lg border border-gray-800">
+              <h4 className="font-semibold mb-3 text-white">Missing Keywords:</h4>
+              {renderKeywords(matchResults.missingKeywords, false)}
+            </div>
+
+            <div className="bg-[#2a2a2a] p-4 rounded-lg border border-gray-800">
+              <h4 className="font-semibold mb-3 text-white">Gap Analysis:</h4>
+              <div className="space-y-3 text-gray-300">
+                <p><strong className="text-white">Experience:</strong> {matchResults.gapAnalysis.experience}</p>
+                <p><strong className="text-white">Education:</strong> {matchResults.gapAnalysis.education}</p>
+                <div>
+                  <strong className="text-white">Technical Gaps:</strong>
+                  <ul className="list-disc list-inside mt-1 text-gray-400">
+                    {matchResults.gapAnalysis.technical.map((gap, index) => (
+                      <li key={index}>{gap}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <strong className="text-white">Required Certifications:</strong>
+                  <ul className="list-disc list-inside mt-1 text-gray-400">
+                    {matchResults.gapAnalysis.certifications.map((cert, index) => (
+                      <li key={index}>{cert}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
             
-            <h4 className="font-semibold mt-4 mb-2">Section-Specific Suggestions:</h4>
-            {Object.entries(matchResults.suggestions).map(([section, suggestions]) => 
-              renderSectionSuggestions(section, suggestions)
-            )}
+            <div className="bg-[#2a2a2a] p-4 rounded-lg border border-gray-800">
+              <h4 className="font-semibold mb-3 text-white">Improvement Suggestions:</h4>
+              {Object.entries(matchResults.suggestions).map(([section, suggestions]) => 
+                renderSectionSuggestions(section, suggestions)
+              )}
+            </div>
           </div>
         )}
       </CardContent>
