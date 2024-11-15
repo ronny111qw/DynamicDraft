@@ -68,7 +68,7 @@ const GrammarCheckInputWrapper = ({
         placeholder={placeholder}
         value={value}
         onChange={onChange}
-        className={`pr-16 ${className}`}
+        className={`pr-16 ${className} border-gray-700`}
       />
       <button
         onClick={() => {
@@ -654,12 +654,12 @@ const ResumeBuilder = () => {
     switch (section) {
       case "personalInfo":
         return (
-          <Card>
+          <Card className='bg-[#2a2a2a] border border-gray-800'>
             <CardHeader>
-              <CardTitle>Personal Information</CardTitle>
+              <CardTitle className='text-white'>Personal Information</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-4 text-white">
                 {Object.entries(resumeData.personalInfo || {}).map(([field, value]) => (
                   <div key={field}>
                     <GrammarCheckInputWrapper
@@ -679,12 +679,12 @@ const ResumeBuilder = () => {
         );
       case "education":
         return (
-          <Card>
+          <Card className='bg-[#2a2a2a] border border-gray-800'>
             <CardHeader>
-              <CardTitle>Education</CardTitle>
+              <CardTitle className='text-white'>Education</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-4 text-white">
                 {(resumeData.education || []).map((edu, index) => (
                   <div key={index} className="space-y-2">
                     <GrammarCheckInputWrapper
@@ -717,19 +717,19 @@ const ResumeBuilder = () => {
                     <Button onClick={() => removeListItem("education", index)} variant="destructive">Remove</Button>
                   </div>
                 ))}
-                <Button onClick={() => addListItem("education")}>Add Education</Button>
+                <Button onClick={() => addListItem("education")} variant='secondary'>Add Education</Button>
               </div>
             </CardContent>
           </Card>
         );
       case "experience":
         return (
-          <Card>
+          <Card className='bg-[#2a2a2a] border border-gray-800'>
             <CardHeader>
-              <CardTitle>Experience</CardTitle>
+              <CardTitle className='text-white'>Experience</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-4 text-white">
                 {(resumeData.experience || []).map((exp, index) => (
                   <div key={index} className="space-y-2">
                     <GrammarCheckInputWrapper
@@ -795,12 +795,12 @@ const ResumeBuilder = () => {
         );
       case "projects":
         return (
-          <Card>
+          <Card className='bg-[#2a2a2a] border border-gray-800'>
       <CardHeader>
-        <CardTitle>Projects</CardTitle>
+        <CardTitle className='text-white'>Projects</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
+        <div className="space-y-4 text-white">
           {(resumeData.projects || []).map((project, index) => (
             <div key={index} className="space-y-2">
               <GrammarCheckInputWrapper
@@ -836,7 +836,7 @@ const ResumeBuilder = () => {
                 </div>
               ))}
               <div className="flex space-x-5 mt-4"> {/* Added container with spacing */}
-                <Button onClick={() => addNestedListItem("projects", index, "details")}>
+                <Button onClick={() => addNestedListItem("projects", index, "details")} variant='secondary'>
                   Add Detail
                 </Button>
                 <Button 
@@ -848,19 +848,19 @@ const ResumeBuilder = () => {
               </div>
             </div>
           ))}
-          <Button onClick={() => addListItem("projects")}>Add Project</Button>
+          <Button onClick={() => addListItem("projects")} variant='secondary'>Add Project</Button>
         </div>
       </CardContent>
     </Card>
         );
         case "skills":
           return (
-            <Card>
+            <Card className='bg-[#2a2a2a] border border-gray-800'>
               <CardHeader>
-                <CardTitle>Skills</CardTitle>
+                <CardTitle className='text-white'>Skills</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="space-y-4 text-white">
                   {Object.entries(resumeData.skills).map(([category, skills]) => (
                     <div key={category} className="space-y-2">
                       <div className="flex items-center justify-between">
@@ -894,6 +894,7 @@ const ResumeBuilder = () => {
                     <Button 
                       onClick={addSkillCategory} 
                       disabled={!newSkillCategory.trim()}
+                      variant='secondary'
                     >
                       Add New Skill Category
                     </Button>
@@ -1166,12 +1167,12 @@ const ResumeBuilder = () => {
           </div>
           <div className="absolute top-0 left-0 w-full h-full bg-[url('/noise.png')] opacity-5 pointer-events-none"></div>
         </header>
-        <main className="container mx-auto px-4 py-8">
+        <main className="container mx-auto px-4 py-8 bg-[#1a1a1a]">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div>
               <FontSelector selectedFont={selectedFont} onFontChange={setSelectedFont} />
               <Tabs value={activeSection} onValueChange={setActiveSection}>
-                <TabsList className="grid w-full grid-cols-5">
+                <TabsList className="grid w-full grid-cols-5 bg-[#2a2a2a] text-white">
                   {sectionOrder.map((section) => (
                     <TabsTrigger key={section} value={section} className="capitalize">
                       {section}
@@ -1190,7 +1191,7 @@ const ResumeBuilder = () => {
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
                                   {...provided.dragHandleProps}
-                                  className="mb-4"
+                                  className="mb-4 text-white"
                                 >
                                   <div className="flex items-center mb-2">
                                     <GripVertical className="h-5 w-5 text-muted-foreground mr-2" />
