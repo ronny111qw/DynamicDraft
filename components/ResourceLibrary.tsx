@@ -16,10 +16,12 @@ type Resource = {
   description: string
   url: string
   type: 'article' | 'video' | 'book'
+  userId: string
 }
 
 type ResourceLibraryProps = {
   resources: Resource[]
+  userId: string
   onAddResource: (resource: Omit<Resource, 'id'>) => void
   onEditResource: (id: string, resource: Partial<Resource>) => void
   onDeleteResource: (id: string) => void
@@ -27,6 +29,7 @@ type ResourceLibraryProps = {
 
 export default function ResourceLibrary({
   resources,
+  userId,
   onAddResource,
   onEditResource,
   onDeleteResource
@@ -44,23 +47,38 @@ export default function ResourceLibrary({
      resource.description.toLowerCase().includes(searchTerm.toLowerCase()))
   )
 
-  const handleAddResource = () => {
+  const handleAddResource = async () => {
     if (newResource.title && newResource.description && newResource.url) {
-      onAddResource(newResource)
-      setNewResource({ title: '', description: '', url: '', type: 'article' })
-      setIsAddDialogOpen(false)
-      toast({
-        title: "Resource Added",
-        description: "The new resource has been added successfully.",
-      })
-    } else {
-      toast({
-        title: "Invalid Input",
-        description: "Please fill in all fields.",
-        variant: "destructive",
-      })
+      try {
+        const response = await fetch('/api/resources', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ...newResource,
+            userId: userId
+          }),
+        });
+
+        if (!response.ok) throw new Error('Failed to add resource');
+        const data = await response.json();
+        onAddResource(data);
+        setNewResource({ title: '', description: '', url: '', type: 'article', userId: '' });
+        setIsAddDialogOpen(false);
+        toast({
+          title: "Resource Added",
+          description: "The new resource has been added successfully.",
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to add resource",
+          variant: "destructive",
+        });
+      }
     }
-  }
+  };
 
   const handleEditResource = () => {
     if (editingResource) {
@@ -84,7 +102,7 @@ export default function ResourceLibrary({
 
   return (
     <div className="space-y-6">
-      <Card className="bg-gray-900 border-gray-800">
+      <Card className="bg-[#1a1a1a] border-gray-800">
         <CardHeader>
           <CardTitle className="text-2xl text-white">Resource Library</CardTitle>
           <CardDescription className="text-gray-400">Manage and explore helpful resources for interview preparation</CardDescription>
@@ -95,13 +113,13 @@ export default function ResourceLibrary({
               placeholder="Search resources..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="flex-grow bg-gray-800 text-white border-gray-700"
+              className="flex-grow bg-[#2a2a2a] text-white border-gray-700"
             />
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-[180px] bg-gray-800 text-white border-gray-700">
+              <SelectTrigger className="w-[180px] bg-[#2a2a2a] text-white border-gray-700">
                 <SelectValue placeholder="Filter by type" />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 text-white border-gray-700">
+              <SelectContent className="bg-[#2a2a2a] text-white border-gray-700">
                 <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="article">Articles</SelectItem>
                 <SelectItem value="video">Videos</SelectItem>
@@ -111,7 +129,7 @@ export default function ResourceLibrary({
           </div>
           <ScrollArea className="h-[400px]">
             {filteredResources.map((resource) => (
-              <Card key={resource.id} className="mb-4 bg-gray-800 border-gray-700">
+              <Card key={resource.id} className="mb-4 bg-[#2a2a2a] border-gray-700">
                 <CardHeader>
                   <CardTitle className="flex items-center text-white">
                     {resource.type === 'article' && <FileText className="mr-2" />}
@@ -127,15 +145,15 @@ export default function ResourceLibrary({
                   </a>
                 </CardContent>
                 <CardFooter>
-                  <Button variant="outline" className="mr-2 text-white border-gray-700 hover:bg-gray-800" onClick={() => {
+                  <Button className="mr-2 bg-gray-200 text-black hover:bg-gray-300" onClick={() => {
                     setEditingResource(resource)
                     setIsEditDialogOpen(true)
                   }}>
-                    <Pencil className="mr-2 h-4 w-4" />
+                    <Pencil className=" h-4 w-4" />
                     Edit
                   </Button>
                   <Button variant="destructive" onClick={() => handleDeleteResource(resource.id)}>
-                    <Trash className="mr-2 h-4 w-4" />
+                    <Trash className=" h-4 w-4" />
                     Delete
                   </Button>
                 </CardFooter>
@@ -147,11 +165,11 @@ export default function ResourceLibrary({
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button className="w-full bg-gradient-to-r from-green-400 to-blue-500 text-black hover:from-green-500 hover:to-blue-600">
-                <Plus className="mr-2 h-4 w-4" />
+                <Plus className="h-4 w-4" /> 
                 Add Resource
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-gray-900 text-white border-gray-800">
+            <DialogContent className="bg-[#1a1a1a] text-white border-gray-800">
               <DialogHeader>
                 <DialogTitle>Add New Resource</DialogTitle>
                 <DialogDescription className="text-gray-400">
@@ -163,36 +181,39 @@ export default function ResourceLibrary({
                   <Label htmlFor="title" className="text-white">Title</Label>
                   <Input
                     id="title"
+                    placeholder="Eg. JavaScript Tutorial"
                     value={newResource.title}
                     onChange={(e) => setNewResource({ ...newResource, title: e.target.value })}
-                    className="bg-gray-800 text-white border-gray-700"
+                    className="bg-[#2a2a2a] text-white border-gray-700"
                   />
                 </div>
                 <div>
                   <Label htmlFor="description" className="text-white">Description</Label>
                   <Textarea
                     id="description"
+                    placeholder="Eg. Learn JavaScript from W3Schools"
                     value={newResource.description}
                     onChange={(e) => setNewResource({ ...newResource, description: e.target.value })}
-                    className="bg-gray-800 text-white border-gray-700"
+                    className="bg-[#2a2a2a] text-white border-gray-700"
                   />
                 </div>
                 <div>
                   <Label htmlFor="url" className="text-white">URL</Label>
                   <Input
                     id="url"
+                    placeholder="Eg. https://www.w3schools.com/js/default.asp"
                     value={newResource.url}
                     onChange={(e) => setNewResource({ ...newResource, url: e.target.value })}
-                    className="bg-gray-800 text-white border-gray-700"
+                    className="bg-[#2a2a2a] text-white border-gray-700"
                   />
                 </div>
                 <div>
                   <Label htmlFor="type" className="text-white">Type</Label>
                   <Select value={newResource.type} onValueChange={(value: 'article' | 'video' | 'book') => setNewResource({ ...newResource, type: value })}>
-                    <SelectTrigger id="type" className="bg-gray-800 text-white border-gray-700">
+                    <SelectTrigger id="type" className="bg-[#2a2a2a] text-white border-gray-700">
                       <SelectValue placeholder="Select resource type" />
                     </SelectTrigger>
-                    <SelectContent className="bg-gray-800 text-white border-gray-700">
+                    <SelectContent className="bg-[#2a2a2a] text-white border-gray-700">
                       <SelectItem value="article">Article</SelectItem>
                       <SelectItem value="video">Video</SelectItem>
                       <SelectItem value="book">Book</SelectItem>
@@ -214,7 +235,7 @@ export default function ResourceLibrary({
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="bg-gray-900 text-white border-gray-800">
           <DialogHeader>
-            <DialogTitle>Edit Resource</DialogTitle>
+            <DialogTitle className="text-white">Edit Resource</DialogTitle>
             <DialogDescription className="text-gray-400">
               Update the details of the selected resource.
             </DialogDescription>
