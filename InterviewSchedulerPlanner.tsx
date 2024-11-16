@@ -16,7 +16,7 @@ import { Switch } from "@/components/ui/switch"
 import { Checkbox } from "@/components/ui/checkbox"
 import { CalendarIcon, Clock, Building, Plus, ChevronLeft, ChevronRight, Trash2, Bell, CheckCircle, XCircle, HelpCircle } from 'lucide-react'
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, parseISO, addDays } from 'date-fns'
-
+import { toast } from "@/components/ui/use-toast"
 type InterviewStatus = 'scheduled' | 'completed' | 'cancelled'
 
 type Interview = {
@@ -30,6 +30,9 @@ type Interview = {
   status: InterviewStatus
   reminder: boolean
   preparationTasks: { id: string; task: string; completed: boolean }[]
+  userId: string
+  createdAt: string
+  updatedAt: string
 }
 
 const defaultPreparationTasks = [
@@ -48,47 +51,135 @@ export default function InterviewScheduler() {
   const [newInterview, setNewInterview] = useState<Partial<Interview>>({})
   const [activeTab, setActiveTab] = useState<InterviewStatus>('scheduled')
   const [selectedInterview, setSelectedInterview] = useState<Interview | null>(null)
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
 
   useEffect(() => {
-    const savedInterviews = localStorage.getItem('interviews')
-    if (savedInterviews) {
-      setInterviews(JSON.parse(savedInterviews))
+    const fetchInterviews = async () => {
+      try {
+        const response = await fetch('/api/interviews')
+        if (!response.ok) {
+          throw new Error('Failed to fetch interviews')
+        }
+        const data = await response.json()
+        setInterviews(data)
+      } catch (error) {
+        console.error('Error fetching interviews:', error)
+        toast({
+          title: "Error",
+          description: "Failed to load interviews. Please try again.",
+          variant: "destructive",
+        })
+      }
     }
+    fetchInterviews()
   }, [])
 
-  useEffect(() => {
-    localStorage.setItem('interviews', JSON.stringify(interviews))
-  }, [interviews])
-
-  const handleAddInterview = () => {
-    if (!newInterview.company || !newInterview.time || !selectedDate) return
-
-    const interview: Interview = {
-      id: Math.random().toString(36).substr(2, 9),
-      date: selectedDate.toISOString(),
-      time: newInterview.time || '',
-      company: newInterview.company || '',
-      position: newInterview.position || '',
-      type: newInterview.type || 'onsite',
-      notes: newInterview.notes || '',
-      status: 'scheduled',
-      reminder: true,
-      preparationTasks: [...defaultPreparationTasks],
+  const handleAddInterview = async () => {
+    if (!newInterview.company || !newInterview.position || !newInterview.time || !selectedDate) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      })
+      return
     }
 
-    setInterviews([...interviews, interview])
-    setIsAddingInterview(false)
-    setNewInterview({})
+    try {
+      const interviewData = {
+        company: newInterview.company,
+        position: newInterview.position,
+        date: format(selectedDate, 'yyyy-MM-dd'),
+        time: newInterview.time,
+        type: newInterview.type || 'onsite',
+        notes: newInterview.notes || '',
+        status: 'scheduled' as const,
+        reminder: false,
+        preparationTasks: defaultPreparationTasks
+      }
+
+      console.log('Sending interview data:', interviewData)
+
+      const response = await fetch('/api/interviews', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(interviewData),
+      })
+
+      const responseData = await response.json()
+
+      if (!response.ok) {
+        throw new Error(responseData.details || responseData.error || 'Failed to add interview')
+      }
+
+      setInterviews([...interviews, responseData])
+      setNewInterview({})
+      setIsAddDialogOpen(false)
+      toast({
+        title: "Success",
+        description: "Interview scheduled successfully",
+      })
+    } catch (error) {
+      console.error('Error adding interview:', error)
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      })
+    }
   }
 
-  const handleDeleteInterview = (id: string) => {
-    setInterviews(interviews.filter(interview => interview.id !== id))
+  const handleDeleteInterview = async (id: string) => {
+    try {
+      const response = await fetch('/api/interviews', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id }),
+      })
+
+      if (!response.ok) throw new Error('Failed to delete interview')
+      setInterviews(interviews.filter(interview => interview.id !== id))
+      toast({
+        title: "Interview Deleted",
+        description: "The interview has been removed successfully.",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete interview",
+        variant: "destructive",
+      })
+    }
   }
 
-  const handleUpdateInterviewStatus = (id: string, status: InterviewStatus) => {
-    setInterviews(interviews.map(interview => 
-      interview.id === id ? { ...interview, status } : interview
-    ))
+  const handleUpdateInterviewStatus = async (id: string, status: InterviewStatus) => {
+    try {
+      const response = await fetch('/api/interviews', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id, status }),
+      })
+
+      if (!response.ok) throw new Error('Failed to update interview')
+      setInterviews(interviews.map(interview => 
+        interview.id === id ? { ...interview, status } : interview
+      ))
+      toast({
+        title: "Status Updated",
+        description: "The interview status has been updated successfully.",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update interview status",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleToggleReminder = (id: string) => {
@@ -210,7 +301,7 @@ export default function InterviewScheduler() {
             ))}
           </div>
           {renderCalendar()}
-          <Dialog open={isAddingInterview} onOpenChange={setIsAddingInterview}>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button className="w-full mt-4" variant='secondary'>
                 <Plus className="mr-2 h-4 w-4" />
@@ -350,10 +441,13 @@ export default function InterviewScheduler() {
                     id={task.id}
                     checked={task.completed}
                     onCheckedChange={() => handleTogglePreparationTask(selectedInterview.id, task.id)}
+                    className="border-gray-600 data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500 
+                    hover:border-blue-400 focus-visible:ring-blue-400 focus-visible:ring-offset-2 
+                    focus-visible:ring-offset-[#1a1a1a]"
                   />
                   <label
                     htmlFor={task.id}
-                    className={`text-sm ${task.completed ? 'line-through text-muted-foreground' : 'text-white'}`}
+                    className={`text-sm ${task.completed ? 'line-through text-gray-500' : 'text-white'}`}
                   >
                     {task.task}
                   </label>
@@ -445,11 +539,12 @@ function InterviewList({ interviews, onDelete, onStatusChange, onToggleReminder,
                 <p className="mt-2 text-gray-400 text-sm">{interview.notes}</p>
               )}
               <div className="mt-4 flex justify-between items-center">
-                <div className="space-x-2">
+                <div className="space-x-0">
                   <Button
                     size="sm"
                     variant={interview.status === 'scheduled' ? 'default' : 'outline'}
                     onClick={() => onStatusChange(interview.id, 'scheduled')}
+                    className='mb-2'
                   >
                     <HelpCircle className="mr-1 h-4 w-4" />
                     Scheduled
@@ -458,6 +553,7 @@ function InterviewList({ interviews, onDelete, onStatusChange, onToggleReminder,
                     size="sm"
                     variant={interview.status === 'completed' ? 'default' : 'outline'}
                     onClick={() => onStatusChange(interview.id, 'completed')}
+                    className='ml-2'
                   >
                     <CheckCircle className="mr-1 h-4 w-4" />
                     Completed
