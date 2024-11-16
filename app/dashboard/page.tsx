@@ -4,7 +4,7 @@ import { signOut, useSession } from 'next-auth/react';
 import { Menu, Transition } from '@headlessui/react'
 import Image from 'next/image'
 import { MessageCircle, UserCircle } from 'lucide-react'
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { CheckCircle, ChevronRight, Edit, FileText, Mail, Plus, Sparkles, Star, UserCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -27,11 +27,23 @@ export default function Dashboard() {
     '/intmock'
   ];
 
-  useEffect(() => {
+  // Optimize route prefetching
+  const prefetchRoutes = useCallback(() => {
     routes.forEach(route => {
-      router.prefetch(route);
+      const link = document.createElement('link');
+      link.rel = 'prefetch';
+      link.href = route;
+      document.head.appendChild(link);
     });
-  }, [router]);
+  }, []);
+
+  // Update useEffect for better prefetching
+  useEffect(() => {
+    prefetchRoutes();
+    // Preload the most common routes immediately
+    router.prefetch('/resume-builder');
+    router.prefetch('/manage-resumes');
+  }, [router, prefetchRoutes]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -114,6 +126,7 @@ export default function Dashboard() {
                 <Menu.Button className="flex items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                     {session.user.image ? (
                       <Image
+                        priority={true}
                         src={session.user.image}
                         alt="Profile"
                         width={32}
@@ -253,10 +266,18 @@ interface DashboardCardProps {
 }
 
 function DashboardCard({ title, description, icon, link }: DashboardCardProps) {
+  const router = useRouter();
+  
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    router.push(link, undefined, { shallow: true });
+  };
+
   return (
     <Link 
       href={link} 
       prefetch={true}
+      onClick={handleClick}
       className="block transform transition-transform hover:scale-[1.02] duration-200"
     >
       <div className="bg-gray-900 rounded-lg p-6 hover:bg-gray-800 transition-colors duration-200">
