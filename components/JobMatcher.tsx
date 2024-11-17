@@ -82,17 +82,21 @@ export default function JobMatcher({ resumeData }: JobMatcherProps) {
           <div key={category}>
             <h5 className="font-medium capitalize mb-2 text-gray-300">{category}:</h5>
             <div className="flex flex-wrap gap-2">
-              {words.map((word, index) => (
-                <span 
-                  key={index} 
-                  className={`inline-block rounded-full px-3 py-1 text-sm font-semibold 
-                    ${isPresent 
-                      ? 'bg-green-900/50 text-green-300 border border-green-700' 
-                      : 'bg-red-900/50 text-red-300 border border-red-700'}`}
-                >
-                  {word}
-                </span>
-              ))}
+              {words.length > 0 ? (
+                words.map((word, index) => (
+                  <span 
+                    key={index} 
+                    className={`inline-block rounded-full px-3 py-1 text-sm font-semibold 
+                      ${isPresent 
+                        ? 'bg-green-900/50 text-green-300 border border-green-700' 
+                        : 'bg-red-900/50 text-red-300 border border-red-700'}`}
+                  >
+                    {word}
+                  </span>
+                ))
+              ) : (
+                <span className="text-gray-500 italic">No {category} keywords found in the job description</span>
+              )}
             </div>
           </div>
         ))}
@@ -103,11 +107,15 @@ export default function JobMatcher({ resumeData }: JobMatcherProps) {
   const renderSectionSuggestions = (section: string, suggestions: string[]) => (
     <div className="mt-4">
       <h5 className="font-semibold capitalize text-gray-300">{section}:</h5>
-      <ul className="list-disc list-inside text-gray-300">
-        {suggestions.map((suggestion, index) => (
-          <li key={index} className="text-gray-400">{suggestion}</li>
-        ))}
-      </ul>
+      {suggestions.length > 0 ? (
+        <ul className="list-disc list-inside text-gray-300">
+          {suggestions.map((suggestion, index) => (
+            <li key={index} className="text-gray-400">{suggestion}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-gray-500 italic">No suggestions available for this section</p>
+      )}
     </div>
   );
 
@@ -169,19 +177,27 @@ export default function JobMatcher({ resumeData }: JobMatcherProps) {
                 <p><strong className="text-white">Education:</strong> {matchResults.gapAnalysis.education}</p>
                 <div>
                   <strong className="text-white">Technical Gaps:</strong>
-                  <ul className="list-disc list-inside mt-1 text-gray-400">
-                    {matchResults.gapAnalysis.technical.map((gap, index) => (
-                      <li key={index}>{gap}</li>
-                    ))}
-                  </ul>
+                  {matchResults.gapAnalysis.technical.length > 0 ? (
+                    <ul className="list-disc list-inside mt-1 text-gray-400">
+                      {matchResults.gapAnalysis.technical.map((gap, index) => (
+                        <li key={index}>{gap}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-1 text-gray-500 italic">No technical gaps identified</p>
+                  )}
                 </div>
                 <div>
                   <strong className="text-white">Required Certifications:</strong>
-                  <ul className="list-disc list-inside mt-1 text-gray-400">
-                    {matchResults.gapAnalysis.certifications.map((cert, index) => (
-                      <li key={index}>{cert}</li>
-                    ))}
-                  </ul>
+                  {matchResults.gapAnalysis.certifications.length > 0 ? (
+                    <ul className="list-disc list-inside mt-1 text-gray-400">
+                      {matchResults.gapAnalysis.certifications.map((cert, index) => (
+                        <li key={index}>{cert}</li>
+                      ))}
+                    </ul>  
+                  ) : (
+                    <p className="mt-1 text-gray-500 italic">No certification requirements found in the job description</p>
+                  )}
                 </div>
               </div>
             </div>
