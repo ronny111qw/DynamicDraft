@@ -65,14 +65,18 @@ const ResumeManager: React.FC = () => {
   const finishRenaming = async () => {
     if (editingId) {
       try {
+        const resume = savedResumes.find(r => r.id === editingId)
+        if (!resume) return
+
         const response = await fetch(`/api/resumes/${editingId}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ 
+            name: editingName,
             content: {
-              ...savedResumes.find(r => r.id === editingId)?.content,
+              ...resume.content,
               name: editingName 
             }
           }),
@@ -80,18 +84,20 @@ const ResumeManager: React.FC = () => {
 
         if (!response.ok) throw new Error('Failed to update resume')
 
-        const updatedResume = await response.json()
         setSavedResumes(prevResumes =>
           prevResumes.map(resume =>
-            resume.id === editingId ? updatedResume : resume
+            resume.id === editingId 
+              ? { ...resume, content: { ...resume.content, name: editingName } }
+              : resume
           )
         )
 
         toast({
-          title: "Resume Updated",
-          description: "The resume name has been updated successfully.",
+          title: "Success",
+          description: "Resume name updated successfully.",
         })
       } catch (error) {
+        console.error('Error updating resume:', error)
         toast({
           title: "Error",
           description: "Failed to update resume name. Please try again.",
@@ -106,19 +112,26 @@ const ResumeManager: React.FC = () => {
     try {
       const response = await fetch(`/api/resumes/${id}`, {
         method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       })
 
-      if (!response.ok) throw new Error('Failed to delete resume')
+      if (!response.ok) {
+        const error = await response.text()
+        throw new Error(error)
+      }
 
       setSavedResumes(prevResumes =>
         prevResumes.filter(resume => resume.id !== id)
       )
 
       toast({
-        title: "Resume Deleted",
-        description: "The resume has been deleted successfully.",
+        title: "Success",
+        description: "Resume deleted successfully.",
       })
     } catch (error) {
+      console.error('Error deleting resume:', error)
       toast({
         title: "Error",
         description: "Failed to delete resume. Please try again.",
