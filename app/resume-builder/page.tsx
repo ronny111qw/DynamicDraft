@@ -994,6 +994,7 @@ const ResumeBuilder = () => {
         <header className="sticky top-0 z-10 bg-black border-b border-gray-800">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center py-4">
+              {/* Left - Logo */}
               <Link href="/" className="flex items-center space-x-2">
                 <Sparkles className="w-8 h-8 text-green-400" />
                 <span className={`text-3xl font-bold text-white ${fredoka.className}`}>
@@ -1001,7 +1002,8 @@ const ResumeBuilder = () => {
                 </span>
               </Link>
 
-              <div className="flex items-center space-x-6">
+              {/* Center - Navigation Links */}
+              <div className="flex items-center space-x-6 absolute left-1/2 transform -translate-x-1/2">
                 <Link href="/dashboard" className="text-gray-300 hover:text-white">
                   Dashboard
                 </Link>
@@ -1011,77 +1013,72 @@ const ResumeBuilder = () => {
                 <Link href="/intmock" className="text-gray-300 hover:text-white">
                   Mock Interview
                 </Link>
+              </div>
+
+              {/* Right - Action Buttons */}
+              <div className="flex items-center space-x-3">
                 <Button
-                onClick={resetToDefault}
-                className="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-md transition duration-300 ease-in-out flex items-center justify-center"
-              >
-                Reset to Default
-              </Button>
-              <Button variant="outline" size="icon" onClick={() => setIsSaveDialogOpen(true)}>
-              <Save className="h-[1.2rem] w-[1.2rem]" />
-              <span className="sr-only">Save resume</span>
-            </Button>
-            <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Save Resume</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <Input
-              placeholder="Enter resume name"
-              value={resumeName}
-              onChange={(e) => setResumeName(e.target.value)}
-            />
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setIsSaveDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={isSaving || !resumeName.trim()}>
-              {isSaving ? (
-                <>
-                  <Loader2 className="animate-spin h-5 w-5 mr-3" />
-                  Saving...
-                </>
-              ) : (
-                'Save'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-       <TooltipProvider> 
-                <Tooltip> 
-                  <TooltipTrigger asChild>
-                    <Button variant="outline" size="icon" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-                      <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                      <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                      <span className="sr-only">Toggle theme</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Toggle theme</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <Button
-                onClick={exportToPDF}
-                disabled={isExporting}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                {isExporting ? (
-                  <>
-                    <Loader2 className="animate-spin h-5 w-5 mr-3" />
-                    Exporting...
-                  </>
-                ) : (
-                  <>
-                    <Download className="h-5 w-5 mr-2" />
-                    Export PDF
-                  </>
-                )}
-              </Button>
+                  onClick={resetToDefault}
+                  className="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-md transition duration-300 ease-in-out flex items-center justify-center"
+                >
+                  Reset to Default
+                </Button>
+                
+                <Button variant="outline" size="icon" onClick={() => setIsSaveDialogOpen(true)}>
+                  <Save className="h-[1.2rem] w-[1.2rem]" />
+                  <span className="sr-only">Save resume</span>
+                </Button>
+
+                <Button
+                  onClick={exportToPDF}
+                  disabled={isExporting}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  {isExporting ? (
+                    <>
+                      <Loader2 className="animate-spin h-5 w-5 mr-3" />
+                      Exporting...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-5 w-5 mr-2" />
+                      Export PDF
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
           </div>
+          
+          {/* Save Dialog */}
+          <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Save Resume</DialogTitle>
+              </DialogHeader>
+              <div className="py-4">
+                <Input
+                  placeholder="Enter resume name"
+                  value={resumeName}
+                  onChange={(e) => setResumeName(e.target.value)}
+                />
+              </div>
+              <DialogFooter>
+                <Button onClick={() => setIsSaveDialogOpen(false)}>Cancel</Button>
+                <Button onClick={handleSave} disabled={isSaving || !resumeName.trim()}>
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="animate-spin h-5 w-5 mr-3" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save'
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <div className="absolute top-0 left-0 w-full h-full bg-[url('/noise.png')] opacity-5 pointer-events-none"></div>
         </header>
         <main className="container mx-auto px-4 py-8 bg-[#1a1a1a]">
