@@ -433,89 +433,6 @@ const ResumeBuilder = () => {
     localStorage.setItem("resumeData", JSON.stringify(resumeData));
   }, [resumeData]);
 
-  const analyzeResume = async () => { 
-    setIsAnalyzing(true);
-    try {
-      const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY!);
-      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-  
-      const prompt = `Analyze the following resume and provide structured suggestions for improvement:
-  
-  ${JSON.stringify(resumeData, null, 2)}
-  
-  Please provide feedback in the following format:
-  
-  1. Overall Structure and Formatting:
-  [Your feedback here]
-  
-  2. Content Relevance and Impact:
-  [Your feedback here]
-  
-  3. Section-specific Improvements:
-  a) Personal Information:
-  [Your feedback here]
-  b) Education:
-  [Your feedback here]
-  c) Experience:
-  [Your feedback here]
-  d) Projects:
-  [Your feedback here] 
-  e) Skills:
-  [Your feedback here]
-  
-  4. Missing Information:
-  [Your feedback here]
-  
-  5. General Tips:
-  [Your feedback here]
-  
-  Please ensure each section is clearly separated and labeled.`;
-  
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = await response.text();
-  
-      // Clean the response text by removing special characters
-      const cleanedText = text.replace(/[^\w\s.,:;?!]/g, ''); // Keep letters, numbers, whitespace, and some punctuation
-  
-      // Parse the structured response
-      const parsedSuggestions = parseAISuggestions(cleanedText);
-  
-      setAiSuggestions(parsedSuggestions);
-    } catch (error) {
-      console.error("Error analyzing resume:", error);
-      setAiSuggestions("An error occurred while analyzing the resume.");
-    }
-    setIsAnalyzing(false);
-  };
-  
-
-  const parseAISuggestions = (text: string): string => {
-    const sections = [
-      "Overall Structure and Formatting",
-      "Content Relevance and Impact",
-      "Section-specific Improvements",
-      "Missing Information",
-      "General Tips"
-    ];
-
-    let parsedText = "";
-    let currentSection = "";
-
-    text.split('\n').forEach(line => {
-      const trimmedLine = line.trim();
-      if (sections.some(section => trimmedLine.startsWith(section))) {
-        currentSection = trimmedLine;
-        parsedText += `\n\n### ${currentSection}\n`;
-      } else if (trimmedLine.match(/^[a-e]\)/)) {
-        parsedText += `\n#### ${trimmedLine}\n`;
-      } else if (trimmedLine) {
-        parsedText += `${trimmedLine}\n`;
-      }
-    });
-
-    return parsedText.trim();
-  };
 
   const exportToPDF = async () => {
     setIsExporting(true);
@@ -966,13 +883,13 @@ const ResumeBuilder = () => {
   };
 
   const renderPreview = () => (
-    <div id="resume-preview" className={`bg-muted p-6 rounded-lg shadow-inner ${fonts[selectedFont].className}`}>
+    <div id="resume-preview" className={`bg-[#2a2a2a] p-6 rounded-lg shadow-inner ${fonts[selectedFont].className} `}>
       {/* <h2 className="text-2xl font-bold mb-4">Preview</h2> */}
-      <div id = "resume-content-for-pdf" className="bg-background p-6 rounded-lg shadow-lg preview-content">
+      <div id = "resume-content-for-pdf" className="bg-[#1a1a1a] p-6 rounded-lg shadow-lg preview-content">
       <DragDropContext onDragEnd={onDragEnd}>
         <Droppable droppableId="resume-preview">
           {(provided) => (
-            <div {...provided.droppableProps} ref={provided.innerRef} className="bg-background p-6 rounded-lg shadow-lg preview-content">
+            <div {...provided.droppableProps} ref={provided.innerRef} className="bg-[#1a1a1a] p-6 rounded-lg shadow-lg preview-content">
               {sectionOrder.map((section, index) => (
                 <Draggable key={section} draggableId={`preview-${section}`} index={index}>
                   {(provided) => (
@@ -984,7 +901,7 @@ const ResumeBuilder = () => {
                     >
                       {section === "personalInfo" && resumeData.personalInfo && (
                         <div className="mb-4">
-                          <h1 className="text-3xl font-bold mb-2">{resumeData.personalInfo.name || "Name"}</h1>
+                          <h1 className="text-3xl font-bold mb-2 text-white">{resumeData.personalInfo.name || "Name"}</h1>
                           <p className="text-sm text-muted-foreground">
                             {resumeData.personalInfo.phone || "Phone"} | {resumeData.personalInfo.email || "Email"} | {resumeData.personalInfo.location || "Location"}
                           </p>
@@ -998,11 +915,11 @@ const ResumeBuilder = () => {
                       )}
                       {section === "education" && resumeData.education && (
                         <div className="mb-4">
-                          <h2 className="text-xl font-semibold mb-2">Education</h2>
+                          <h2 className="text-xl font-semibold mb-2 text-white">Education</h2>
                           {resumeData.education.map((edu, index) => (
                             <div key={index} className="mb-2">
-                              <p className="font-medium">{edu.institution || "Institution"}</p>
-                              <p>{edu.degree || "Degree"}</p>
+                              <p className="font-medium text-white">{edu.institution || "Institution"}</p>
+                              <p className="text-white">{edu.degree || "Degree"}</p>
                               <p className="text-sm text-muted-foreground">{edu.graduationDate || "Graduation Date"}</p>
                             </div>
                           ))}
@@ -1010,17 +927,17 @@ const ResumeBuilder = () => {
                       )}
                       {section === "experience" && resumeData.experience && resumeData.experience.length > 0 && (
                         <div className="mb-4">
-                          <h2 className="text-xl font-semibold mb-2">Experience</h2>
+                          <h2 className="text-xl font-semibold mb-2 text-white">Experience</h2>
                           {resumeData.experience.map((exp, index) => (
                             <div key={index} className="mb-4">
-                              <p className="font-medium">{exp.position || "Position"}</p>
-                              <p>{exp.company || "Company"}</p>
+                              <p className="font-medium text-white">{exp.position || "Position"}</p>
+                              <p className="text-white">{exp.company || "Company"}</p>
                               <p className="text-sm text-muted-foreground">
                                 {exp.startDate || "Start Date"} - {exp.endDate || "End Date"}
                               </p>
-                              <ul className="list-disc list-inside mt-1">
+                              <ul className="list-disc list-inside mt-1 text-white">
                                 {(exp.responsibilities || []).map((resp, respIndex) => (
-                                  <li key={respIndex} className="text-sm">
+                                  <li key={respIndex} className="text-sm text-white">
                                     {resp || "Responsibility"}
                                   </li>
                                 ))}
@@ -1031,11 +948,11 @@ const ResumeBuilder = () => {
                       )}
                       {section === "projects" && resumeData.projects && (
                         <div className="mb-4">
-                          <h2 className="text-xl font-semibold mb-2">Projects</h2>
+                          <h2 className="text-xl font-semibold mb-2 text-white">Projects</h2>
                           {resumeData.projects.map((project, index) => (
                             <div key={index} className="mb-4">
-                              <p className="font-medium">{project.name || "Project Name"} | <span className="font-normal">{project.description || "Project Description"}</span></p>
-                              <ul className="list-disc list-inside mt-1">
+                              <p className="font-medium text-white">{project.name || "Project Name"} | <span className="font-normal">{project.description || "Project Description"}</span></p>
+                              <ul className="list-disc list-inside mt-1 text-white">
                                 {(project.details || []).map((detail, detailIndex) => (
                                   <li key={detailIndex} className="text-sm">{detail || "Detail"}</li>
                                 ))}
@@ -1046,9 +963,9 @@ const ResumeBuilder = () => {
                       )}
                       {section === "skills" && resumeData.skills && (
                         <div className="mb-4">
-                          <h2 className="text-xl font-semibold mb-2">Technical Skills</h2>
+                          <h2 className="text-xl font-semibold mb-2 text-white">Technical Skills</h2>
                           {Object.entries(resumeData.skills).map(([category, skills]) => (
-                            <p key={category} className="mb-1">
+                            <p key={category} className="mb-1 text-white">
                               <span className="font-medium capitalize">{category}: </span>
                               {typeof skills === 'string' ? skills : JSON.stringify(skills)}
                             </p>
@@ -1179,7 +1096,7 @@ const ResumeBuilder = () => {
                     </TabsTrigger>
                   ))}
                 </TabsList>
-                <ScrollArea className="h-[calc(100vh-12rem)] rounded-md border p-4">
+                <ScrollArea className="h-[calc(100vh-12rem)] rounded-md border p-4 border-none">
                   <DragDropContext onDragEnd={onDragEnd}>
                     <Droppable droppableId="resume-sections">
                       {(provided) => (
@@ -1221,27 +1138,8 @@ const ResumeBuilder = () => {
                   </DragDropContext>
                 </ScrollArea>
               </Tabs>    
-               <Button
-            onClick={analyzeResume}  
-            disabled={isAnalyzing}
-            className="w-full bg-green-600 text-white hover:bg-green-700 mt-4 ai-suggestions"
-          >
-            {isAnalyzing ? (
-              <>
-                <Loader2 className="animate-spin h-5 w-5 mr-3" />
-                Analyzing...
-              </>
-            ) : (
-              <>AI Analyze </>
-            )}
-          </Button>
-          {aiSuggestions && (
-            <div className="mt-4 p-4 bg-blue-100 rounded-lg ai-suggestions">
-              <h3 className="text-lg font-semibold mb-2">AI Suggestions:</h3>
-              <div className="whitespace-pre-wrap">{aiSuggestions}</div>
-            </div>
-            
-          )}
+
+        
             <JobMatcher resumeData={resumeData}/>
             </div>
             {renderPreview()}
