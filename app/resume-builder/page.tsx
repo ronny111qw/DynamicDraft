@@ -902,14 +902,14 @@ const ResumeBuilder = () => {
                       {section === "personalInfo" && resumeData.personalInfo && (
                         <div className="mb-4">
                           <h1 className="text-3xl font-bold mb-2 text-white">{resumeData.personalInfo.name || "Name"}</h1>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-sm text-gray-400">
                             {resumeData.personalInfo.phone || "Phone"} | {resumeData.personalInfo.email || "Email"} | {resumeData.personalInfo.location || "Location"}
                           </p>
                           {resumeData.personalInfo.linkedin && (
-                          <p className="text-sm text-muted-foreground">LinkedIn: {resumeData.personalInfo.linkedin}</p>
+                          <p className="text-sm text-gray-400">LinkedIn: {resumeData.personalInfo.linkedin}</p>
                         )}
                         {resumeData.personalInfo.github && (
-                          <p className="text-sm text-muted-foreground">GitHub: {resumeData.personalInfo.github}</p>
+                          <p className="text-sm text-gray-400">GitHub: {resumeData.personalInfo.github}</p>
                           )}
                         </div>
                       )}
@@ -920,7 +920,7 @@ const ResumeBuilder = () => {
                             <div key={index} className="mb-2">
                               <p className="font-medium text-white">{edu.institution || "Institution"}</p>
                               <p className="text-white">{edu.degree || "Degree"}</p>
-                              <p className="text-sm text-muted-foreground">{edu.graduationDate || "Graduation Date"}</p>
+                              <p className="text-sm text-gray-400">{edu.graduationDate || "Graduation Date"}</p>
                             </div>
                           ))}
                         </div>
@@ -932,7 +932,7 @@ const ResumeBuilder = () => {
                             <div key={index} className="mb-4">
                               <p className="font-medium text-white">{exp.position || "Position"}</p>
                               <p className="text-white">{exp.company || "Company"}</p>
-                              <p className="text-sm text-muted-foreground">
+                              <p className="text-sm text-gray-400">
                                 {exp.startDate || "Start Date"} - {exp.endDate || "End Date"}
                               </p>
                               <ul className="list-disc list-inside mt-1 text-white">
