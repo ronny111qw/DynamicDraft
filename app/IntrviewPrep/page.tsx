@@ -269,7 +269,7 @@ export default function EnhancedQuestionGenerator() {
   const [interviewTips, setInterviewTips] = useState<string[]>([])
   const [isGeneratingTips, setIsGeneratingTips] = useState(false)
   const [selectedIndustry, setSelectedIndustry] = useState('')
-  const [interviewResults, setInterviewResults] = useState<InterviewResult[]>([])
+  const [interviewResults, setInterviewResults] = useState<any[]>([]);
   const [sharedQuestionSets, setSharedQuestionSets] = useState([])
   const [resources, setResources] = useState<Resource[]>([])
   const [resourceSearchTerm, setResourceSearchTerm] = useState('')
@@ -302,6 +302,32 @@ export default function EnhancedQuestionGenerator() {
 
   useEffect(() => {
     fetchSavedSets();
+  }, []);
+
+  useEffect(() => {
+    const fetchProgress = async () => {
+      try {
+        const response = await fetch('/api/progress');
+        if (!response.ok) throw new Error('Failed to fetch progress');
+        const data = await response.json();
+        
+        // Only set the data if it's an array
+        if (Array.isArray(data)) {
+          setInterviewResults(data);
+        } else {
+          setInterviewResults([]); // Set empty array if data is invalid
+        }
+      } catch (error) {
+        console.error('Error fetching progress:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load progress data",
+          variant: "destructive",
+        });
+        setInterviewResults([]); // Set empty array on error
+      }
+    };
+    fetchProgress();
   }, []);
 
   const fetchSavedSets = useCallback(async () => {
@@ -485,27 +511,37 @@ export default function EnhancedQuestionGenerator() {
       };
       setQuestions(updatedQuestions);
 
-      // Calculate and store the interview result
-      const newResult = {
-        date: format(new Date(), 'yyyy-MM-dd'),
-        averageScore: feedback.overallRating, // Use the actual rating from feedback
+      // Save progress to database
+      const progressData = {
+        date: new Date(),
+        averageScore: feedback.overallRating,
         totalQuestions: questions.length,
         questionTypes: {
-          [question.type]: feedback.overallRating // Store the actual score
+          [question.type]: feedback.overallRating
         }
       };
 
-      setInterviewResults(prev => [...prev, newResult]);
+      const response = await fetch('/api/progress', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(progressData),
+      });
+
+      if (!response.ok) throw new Error('Failed to save progress');
+      const savedProgress = await response.json();
+      setInterviewResults(prev => [...prev, savedProgress]);
       
       toast({
         title: "Answer Evaluated",
-        description: "Your answer has been evaluated successfully.",
+        description: "Your answer has been evaluated and progress saved.",
       });
     } catch (error) {
-      console.error('Error evaluating answer:', error);
+      console.error('Error:', error);
       toast({
         title: "Error",
-        description: "Failed to evaluate answer. Please try again.",
+        description: "Failed to evaluate answer or save progress",
         variant: "destructive",
       });
     } finally {
@@ -858,7 +894,30 @@ export default function EnhancedQuestionGenerator() {
     }
   };
 
+  const handleResetProgress = async () => {
+    try {
+      const response = await fetch('/api/progress', {
+        method: 'DELETE',
+      });
 
+      if (!response.ok) throw new Error('Failed to reset progress');
+      
+      // Immediately clear the local state
+      setInterviewResults([]);
+      
+      toast({
+        title: "Progress Reset",
+        description: "Your progress has been reset successfully.",
+      });
+    } catch (error) {
+      console.error('Error resetting progress:', error);
+      toast({
+        title: "Error",
+        description: "Failed to reset progress",
+        variant: "destructive",
+      });
+    }
+  };
 
 return (
     <div className="bg-black min-h-screen text-gray-900 font-sans">
@@ -1191,8 +1250,20 @@ return (
                         <p>Question {currentQuestionIndex + 1} of {questions.length}</p>
                         <p>Time: {formatTime(interviewTimer)} / {formatTime(interviewDuration)}</p>
                       </div>
-                      <Progress value={(interviewTimer / interviewDuration) * 100} className="w-full" />
-                      <Progress value={((currentQuestionIndex + 1) / questions.length) * 100} className="w-full" />
+                      <div className="w-full bg-gray-800 h-2 rounded-full">
+  <div
+    className="bg-gray-200 h-full rounded-full"
+    style={{ width: `${(interviewTimer / interviewDuration) * 100}%` }}
+  ></div>
+</div>
+<div className="w-full bg-gray-800 h-2 rounded-full">
+  <div
+    className="bg-gray-200 h-full rounded-full"
+    style={{ width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }}
+  ></div>
+</div>
+
+
                       <Card className="bg-[#2a2a2a] border-gray-700">
                         <CardContent className="pt-6">
                           <p className="text-lg font-medium text-white">{questions[currentQuestionIndex].question}</p>
@@ -1288,17 +1359,20 @@ return (
                       </ScrollArea>
                       <div className="mt-4 space-y-4">
                         <div>
-                          <Label htmlFor="interview-duration">Interview Duration (minutes)</Label>
+                          <Label htmlFor="interview-duration" className="text-gray-200">Interview Duration (minutes)</Label>
                           <div className="flex items-center space-x-2">
-                            <Slider
-                              id="interview-duration"
-                              min={5}
-                              max={120}
-                              step={5}
-                              value={[interviewDuration / 60]}
-                              onValueChange={(value) => handleDurationChange(value[0])}
-                            />
-                            <span className="w-12 text-center">{interviewDuration / 60}</span>
+                          <div className="w-full bg-gray-800 h-2 rounded-full relative">
+  <div
+    className="bg-gray-200 h-full rounded-full"
+    style={{ width: `${(interviewDuration / 120) * 100}%` }}
+  ></div>
+  <div
+    className="bg-blue-500 h-4 w-4 rounded-full absolute top-[-0.5rem]"
+    style={{ left: `${(interviewDuration / 120) * 100}%`, transform: 'translateX(-50%)' }}
+  ></div>
+</div>
+
+                            <span className="w-12 text-center text-gray-200">{interviewDuration / 60}</span>
                           </div>
                         </div>
                         <div className="flex space-x-2">
@@ -1403,6 +1477,7 @@ return (
                     <DialogTrigger asChild>
                       <Button 
                         variant="destructive" 
+                        onClick={handleResetProgress}
                         className="bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400"
                       >
                         Reset Progress
@@ -1429,17 +1504,7 @@ return (
                         <Button 
                           variant="destructive"
                           className="bg-red-500 hover:bg-red-600"
-                          onClick={() => {
-                            setInterviewResults([]);
-                            localStorage.removeItem('interviewResults'); // Add this if you're using localStorage
-                            const dialogClose = document.querySelector('[data-dialog-close]') as HTMLButtonElement;
-                            dialogClose?.click();
-                            toast({
-                              title: "Progress Reset",
-                              description: "All progress data has been cleared.",
-                              variant: "destructive",
-                            });
-                          }}
+                          onClick={handleResetProgress}
                         >
                           Reset All Data
                         </Button>
@@ -1908,10 +1973,10 @@ function QuestionCard({ question, index, questionTypes, onAnswerChange, onEvalua
         />
         <div className="flex justify-between">
           <Button 
-            variant="outline" 
+            variant="secondary" 
             size="sm" 
             onClick={copyToClipboard}
-            className="border-gray-700 text-gray-300 hover:text-white hover:bg-[#2a2a2a]"
+      
           >
             {isCopied ? (
               <>
