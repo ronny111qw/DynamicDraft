@@ -1024,7 +1024,12 @@ const ResumeBuilder = () => {
                   Reset to Default
                 </Button>
                 
-                <Button variant="outline" size="icon" onClick={() => setIsSaveDialogOpen(true)}>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={() => setIsSaveDialogOpen(true)}
+                  className="bg-purple-600 hover:bg-purple-700 text-white border-purple-700 hover:text-white"
+                >
                   <Save className="h-[1.2rem] w-[1.2rem]" />
                   <span className="sr-only">Save resume</span>
                 </Button>
@@ -1032,7 +1037,7 @@ const ResumeBuilder = () => {
                 <Button
                   onClick={exportToPDF}
                   disabled={isExporting}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                 >
                   {isExporting ? (
                     <>
@@ -1041,7 +1046,7 @@ const ResumeBuilder = () => {
                     </>
                   ) : (
                     <>
-                      <Download className="h-5 w-5 mr-2" />
+                      <Download className="h-5 w-5" />
                       Export PDF
                     </>
                   )}
@@ -1052,20 +1057,21 @@ const ResumeBuilder = () => {
           
           {/* Save Dialog */}
           <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
-            <DialogContent>
+            <DialogContent className="bg-[#1a1a1a] border border-gray-800">
               <DialogHeader>
-                <DialogTitle>Save Resume</DialogTitle>
+                <DialogTitle className="text-white">Save Resume</DialogTitle>
               </DialogHeader>
               <div className="py-4">
                 <Input
                   placeholder="Enter resume name"
                   value={resumeName}
                   onChange={(e) => setResumeName(e.target.value)}
+                  className="text-white"
                 />
               </div>
               <DialogFooter>
-                <Button onClick={() => setIsSaveDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleSave} disabled={isSaving || !resumeName.trim()}>
+                <Button onClick={() => setIsSaveDialogOpen(false)} className="text-white bg-gray-600 hover:bg-gray-700">Cancel</Button>
+                <Button onClick={handleSave} disabled={isSaving || !resumeName.trim()} className="text-white bg-green-600 hover:bg-green-700">
                   {isSaving ? (
                     <>
                       <Loader2 className="animate-spin h-5 w-5 mr-3" />
