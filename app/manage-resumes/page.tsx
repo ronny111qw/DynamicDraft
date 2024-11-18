@@ -160,19 +160,31 @@ const ResumeManager: React.FC = () => {
     <div className="bg-black min-h-screen text-white font-sans">
       <div className="absolute top-0 left-0 w-full h-full bg-[url('/noise.png')] opacity-5 pointer-events-none"></div>
       <div className="relative z-10">
-        <nav className="border-b border-gray-800 py-4">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center">
-              <Link href="/" className="flex items-center space-x-2">
-                <Sparkles className="w-8 h-8 text-green-400" />
-                <span className={`text-3xl font-bold text-white ${fredoka.className}`}>
-                  Dynamic<span className="text-green-400">Draft</span>
-                </span> 
+      <nav className="border-b bg-black border-gray-800 py-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center">
+            <Link href="/" className="flex items-center space-x-2">
+              <Sparkles className="w-8 h-8 text-green-400" />
+              <span className={`text-3xl font-bold text-white ${fredoka.className}`}>
+                Dynamic<span className="text-green-400">Draft</span>
+                  </span>
+            </Link>
+
+            <div className="flex items-center space-x-6">
+              <Link href="/dashboard" className="text-gray-300 hover:text-white">
+                Dashboard
               </Link>
-              <Link href="/dashboard" className="flex items-center text-gray-300 hover:text-white">
-                <ArrowLeft className="w-4 h-4 mr-2" /> Back to Dashboard
+              <Link href="/choose-template" className="text-gray-300 hover:text-white">
+                Templates
               </Link>
+              <Link href="/intmock" className="text-gray-300 hover:text-white">
+                Mock Interview
+              </Link>
+              <button className="bg-gradient-to-r from-green-400 to-blue-500 text-black px-4 py-2 rounded-full text-sm font-medium hover:from-green-500 hover:to-blue-600 transition-all duration-300">
+                Upgrade
+              </button>
             </div>
+          </div>
           </div>
         </nav>
 
