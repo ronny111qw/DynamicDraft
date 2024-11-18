@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { templates } from '../templates/templateData'
-import { CheckCircle, Sparkles, Search } from 'lucide-react'
+import { CheckCircle, Sparkles, Search, Menu, X } from 'lucide-react'
 import { Fredoka } from '@next/font/google';
 
 const fredoka = Fredoka({ weight: ['400','600'], subsets: ['latin'] });
@@ -18,6 +18,7 @@ export default function ChooseTemplate() {
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
   const [filter, setFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const useTemplate = (templateId: string) => {
     const template = templates.find(t => t.id === templateId)
@@ -36,7 +37,7 @@ export default function ChooseTemplate() {
   })
 
   const TemplatePreview = ({ name }: { name: string }) => (
-    <div className="h-48 bg-[#2a2a2a] rounded-t-lg p-4 flex flex-col">
+    <div className="h-36 sm:h-48 bg-[#2a2a2a] rounded-t-lg p-4 flex flex-col">
       <div className="w-full h-6 bg-[#1a1a1a] rounded mb-2"></div>
       <div className="flex-1 flex">
         <div className="w-1/3 pr-2">
@@ -63,43 +64,101 @@ export default function ChooseTemplate() {
             <div className="flex justify-between items-center">
               <Link href="/" className="flex items-center space-x-2">
                 <Sparkles className="w-8 h-8 text-green-400" />
-                <span className={`text-3xl font-bold text-white ${fredoka.className}`}>
+                <span className={`text-2xl sm:text-3xl font-bold text-white ${fredoka.className}`}>
                   Dynamic<span className="text-green-400">Draft</span>
                 </span> 
               </Link>
-              <div className="flex items-center space-x-6">
-                <Link href="/dashboard" className="text-gray-300 hover:text-white">Dashboard</Link>
-                <Link href="/choose-template" className="text-gray-300 hover:text-white">Templates</Link>
-                <Link href="/pricing" className="text-gray-300 hover:text-white">Pricing</Link>
-                <button className="bg-gradient-to-r from-green-400 to-blue-500 text-black px-4 py-2 rounded-full text-sm font-medium hover:from-green-500 hover:to-blue-600 transition-all duration-300">Upgrade</button>
+
+              <div className="hidden md:flex items-center space-x-6">
+                <Link href="/dashboard" className="text-gray-300 hover:text-white">
+                  Dashboard
+                </Link>
+                <Link href="/choose-template" className="text-gray-300 hover:text-white">
+                  Templates
+                </Link>
+                <Link href="/pricing" className="text-gray-300 hover:text-white">
+                  Pricing
+                </Link>
+                <button className="bg-gradient-to-r from-green-400 to-green-500 text-black px-4 py-2 rounded-full text-sm font-medium hover:from-green-500 hover:to-green-600 transition-all duration-300">
+                  Upgrade
+                </button>
               </div>
+
+              <button 
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="md:hidden p-2"
+              >
+                {isMobileMenuOpen ? (
+                  <X className="h-6 w-6 text-gray-300" />
+                ) : (
+                  <Menu className="h-6 w-6 text-gray-300" />
+                )}
+              </button>
             </div>
+
+            <AnimatePresence>
+              {isMobileMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="md:hidden"
+                >
+                  <div className="flex flex-col space-y-4 pt-4 pb-3">
+                    <Link 
+                      href="/dashboard" 
+                      className="text-gray-300 hover:text-white px-2 py-1"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Dashboard
+                    </Link>
+                    <Link 
+                      href="/choose-template" 
+                      className="text-gray-300 hover:text-white px-2 py-1"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Templates
+                    </Link>
+                    <Link 
+                      href="/pricing" 
+                      className="text-gray-300 hover:text-white px-2 py-1"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Pricing
+                    </Link>
+                    <button className="bg-gradient-to-r from-green-400 to-green-500 text-black px-4 py-2 rounded-full text-sm font-medium hover:from-green-500 hover:to-green-600 transition-all duration-300 w-full">
+                      Upgrade
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </nav>
 
         <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16 overflow-visible">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-green-400 to-blue-500 text-transparent bg-clip-text leading-[1.1] py-3 -mt-2">
+          <div className="text-center mb-8 sm:mb-16 overflow-visible">
+            <h1 className="text-4xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 bg-gradient-to-r from-green-400 to-blue-500 text-transparent bg-clip-text leading-[1.1] py-3 -mt-2 px-4">
               Choose Your Resume Template
             </h1>
-            <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+            <p className="text-sm sm:text-xl text-gray-400 max-w-2xl mx-auto px-4">
               Select from our AI-optimized templates to create a standout resume that gets you noticed.
             </p>
           </div>
 
-          <div className="flex justify-between items-center mb-8">
-            <div className="relative">
+          <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between mb-8">
+            <div className="relative w-full sm:w-auto">
               <input
                 type="text"
                 placeholder="Search templates..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-[#1a1a1a] text-white pl-10 pr-4 py-2 rounded-full focus:outline-none focus:ring-2 focus:ring-green-400"
+                className="w-full bg-[#1a1a1a] text-white pl-10 pr-4 py-2 rounded-full focus:outline-none focus:ring-2 focus:ring-green-400"
               />
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             </div>
             <Select onValueChange={(value) => setFilter(value)}>
-              <SelectTrigger className="w-[180px] bg-[#1a1a1a] text-white border-gray-700">
+              <SelectTrigger className="w-full sm:w-[180px] bg-[#1a1a1a] text-white border-gray-700">
                 <SelectValue placeholder="Filter by category" />
               </SelectTrigger>
               <SelectContent className="bg-[#1a1a1a] text-white border-gray-700">
@@ -112,7 +171,7 @@ export default function ChooseTemplate() {
           </div>
 
           <motion.div 
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-8"
             initial="hidden"
             animate="visible"
             variants={{
@@ -140,11 +199,15 @@ export default function ChooseTemplate() {
                     <CardHeader className="p-0">
                       <TemplatePreview name={template.name} />
                     </CardHeader>
-                    <CardContent className="p-6">
-                      <CardTitle className="text-xl font-semibold mb-2 text-white">{template.name}</CardTitle>
-                      <p className="text-gray-400 mb-4">Perfect for {template.category} roles</p>
+                    <CardContent className="p-4 sm:p-6">
+                      <CardTitle className="text-lg sm:text-xl font-semibold mb-2 text-white">
+                        {template.name}
+                      </CardTitle>
+                      <p className="text-sm sm:text-base text-gray-400 mb-4">
+                        Perfect for {template.category} roles
+                      </p>
                     </CardContent>
-                    <CardFooter className="p-6 pt-0">
+                    <CardFooter className="p-4 sm:p-6 pt-0">
                       <Button 
                         onClick={() => {
                           setSelectedTemplate(template.id)
