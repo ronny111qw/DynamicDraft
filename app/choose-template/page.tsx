@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -19,6 +19,8 @@ export default function ChooseTemplate() {
   const [filter, setFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
 
   const useTemplate = (templateId: string) => {
     const template = templates.find(t => t.id === templateId)
@@ -30,13 +32,15 @@ export default function ChooseTemplate() {
     }
   }
 
-  const filteredTemplates = templates.filter(template => {
-    const matchesFilter = filter === 'all' || template.category === filter
-    const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase())
-    return matchesFilter && matchesSearch
-  })
+  const filteredTemplates = React.useMemo(() => 
+    templates.filter(template => {
+      const matchesFilter = filter === 'all' || template.category === filter
+      const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase())
+      return matchesFilter && matchesSearch
+    }), [filter, searchTerm]
+  )
 
-  const TemplatePreview = ({ name }: { name: string }) => (
+  const TemplatePreview = React.memo(({ name }: { name: string }) => (
     <div className="h-36 sm:h-48 bg-[#2a2a2a] rounded-t-lg p-4 flex flex-col">
       <div className="w-full h-6 bg-[#1a1a1a] rounded mb-2"></div>
       <div className="flex-1 flex">
@@ -53,7 +57,49 @@ export default function ChooseTemplate() {
       </div>
       <div className="mt-auto text-center text-gray-600 font-semibold">{name}</div>
     </div>
-  )
+  ))
+  TemplatePreview.displayName = 'TemplatePreview'
+
+  const handleTemplateClick = React.useCallback((templateId: string) => {
+    setSelectedTemplate(templateId)
+    useTemplate(templateId)
+  }, [useTemplate])
+
+  const TemplateCard = React.memo(({ template }: { template: Template }) => (
+    <Card className="bg-[#1a1a1a] border-gray-800 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-green-400/10">
+      <CardHeader className="p-0">
+        <TemplatePreview name={template.name} />
+      </CardHeader>
+      <CardContent className="p-4 sm:p-6">
+        <CardTitle className="text-lg sm:text-xl font-semibold mb-2 text-white">
+          {template.name}
+        </CardTitle>
+        <p className="text-sm sm:text-base text-gray-400 mb-4">
+          Perfect for {template.category} roles
+        </p>
+      </CardContent>
+      <CardFooter className="p-4 sm:p-6 pt-0">
+        <Button 
+          onClick={() => handleTemplateClick(template.id)} 
+          className="w-full bg-gradient-to-r from-teal-400 to-blue-400 text-black hover:from-teal-500 hover:to-blue-500 transition-all duration-300"
+        >
+          {selectedTemplate === template.id ? (
+            <>
+              <CheckCircle className="mr-2 h-4 w-4" />
+              Selected
+            </>
+          ) : (
+            'Use This Template'
+          )}
+        </Button>
+      </CardFooter>
+    </Card>
+  ))
+  TemplateCard.displayName = 'TemplateCard'
+
+  useEffect(() => {
+    setIsLoading(false)
+  }, [])
 
   return (
     <div className="bg-black min-h-screen text-white font-sans">
@@ -151,8 +197,8 @@ export default function ChooseTemplate() {
               <input
                 type="text"
                 placeholder="Search templates..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                value={debouncedSearchTerm}
+                onChange={(e) => setDebouncedSearchTerm(e.target.value)}
                 className="w-full bg-[#1a1a1a] text-white pl-10 pr-4 py-2 rounded-full focus:outline-none focus:ring-2 focus:ring-green-400"
               />
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -184,51 +230,27 @@ export default function ChooseTemplate() {
               }
             }}
           >
-            <AnimatePresence>
-              {filteredTemplates.map((template) => (
-                <motion.div
-                  key={template.id}
-                  variants={{
-                    hidden: { y: 20, opacity: 0 },
-                    visible: { y: 0, opacity: 1 }
-                  }}
-                  exit={{ opacity: 0, y: -20 }}
-                  layout
-                >
-                  <Card className="bg-[#1a1a1a] border-gray-800 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-green-400/10">
-                    <CardHeader className="p-0">
-                      <TemplatePreview name={template.name} />
-                    </CardHeader>
-                    <CardContent className="p-4 sm:p-6">
-                      <CardTitle className="text-lg sm:text-xl font-semibold mb-2 text-white">
-                        {template.name}
-                      </CardTitle>
-                      <p className="text-sm sm:text-base text-gray-400 mb-4">
-                        Perfect for {template.category} roles
-                      </p>
-                    </CardContent>
-                    <CardFooter className="p-4 sm:p-6 pt-0">
-                      <Button 
-                        onClick={() => {
-                          setSelectedTemplate(template.id)
-                          useTemplate(template.id)
-                        }} 
-                        className="w-full bg-gradient-to-r from-teal-400 to-blue-400 text-black hover:from-teal-500 hover:to-blue-500 transition-all duration-300"
-                      >
-                        {selectedTemplate === template.id ? (
-                          <>
-                            <CheckCircle className="mr-2 h-4 w-4" />
-                            Selected
-                          </>
-                        ) : (
-                          'Use This Template'
-                        )}
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                </motion.div>
-              ))}
-            </AnimatePresence>
+            {!isLoading ? (
+              <AnimatePresence>
+                {filteredTemplates.map((template) => (
+                  <motion.div
+                    key={template.id}
+                    variants={{
+                      hidden: { y: 20, opacity: 0 },
+                      visible: { y: 0, opacity: 1 }
+                    }}
+                    exit={{ opacity: 0, y: -20 }}
+                    layout
+                  >
+                    <TemplateCard template={template} />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            ) : (
+              <div className="col-span-full flex justify-center items-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-400"></div>
+              </div>
+            )}
           </motion.div>
         </div>
       </div>
