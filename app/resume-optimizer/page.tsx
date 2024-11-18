@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Loader2, CheckCircle, Sparkles, AlertCircle, ArrowRight, BookOpen, Brain, Target, Zap, HelpCircle, Info, CheckCircle2, XCircle, X } from "lucide-react";
+import { Loader2, CheckCircle, Sparkles, AlertCircle, ArrowRight, BookOpen, Brain, Target, Zap, HelpCircle, Info, CheckCircle2, XCircle, X, Menu } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -12,16 +12,17 @@ import { toast } from "@/components/ui/use-toast";
 import { signOut, useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { Poppins } from 'next/font/google'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Fredoka } from 'next/font/google'
 
 
-const poppins = Poppins({
+
+const fredoka = Fredoka({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
   display: 'swap',
 })
 
@@ -72,15 +73,16 @@ interface PriorityImprovement {
   priority: 'high' | 'medium' | 'low';
 }
 
-interface DetailedAnalysisSection extends AnalysisSection {
-  content: string | string[] | PriorityImprovement[] | {
-    matching_skills?: string[];
-    missing_skills?: string[];
-    irrelevant_skills?: string[];
-    strong_points?: string[];
-    improvement_areas?: string[];
-    recommendations?: string[];
-  };
+interface DetailedAnalysisSection {
+  title: string;
+  content: 
+    | string 
+    | string[] 
+    | PriorityImprovement[] 
+    | Record<string, string[]>
+    | null;
+  impact?: 'high' | 'medium' | 'low';
+  confidence?: number;
 }
 
 interface AnalysisResponse {
@@ -136,7 +138,7 @@ const CircularProgress = ({ value }: { value: number }) => (
           
 
 const ResumeAnalytics = ({ stats }: { stats: ResumeStats }) => (
-  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
     {[
       { key: 'wordCount', icon: BookOpen, label: 'Word Count', ideal: '250-650' },
       { key: 'characterCount', icon: Target, label: 'Character Count', ideal: '1500-3000' },
@@ -351,6 +353,7 @@ export default function ResumeOptimizer() {
   const [error, setError] = useState<string | null>(null);
   const [overallScore, setOverallScore] = useState<number>(0);
   const [activeTab, setActiveTab] = useState('input');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [resumeStats, setResumeStats] = useState<ResumeStats>({
     wordCount: 0,
     characterCount: 0,
@@ -490,17 +493,17 @@ export default function ResumeOptimizer() {
     
 
   const renderAnalysisContent = (section: DetailedAnalysisSection) => {
-    if (!section.content) return null;
-  
+    // Handle string content
     if (typeof section.content === 'string') {
       return <p className="text-gray-300">{section.content}</p>;
     }
-    
+
+    // Handle array of strings
     if (Array.isArray(section.content)) {
       return (
         <ul className="space-y-3">
           {section.content.map((item, i) => {
-            // Handle string items
+            // If item is a string
             if (typeof item === 'string') {
               return (
                 <li key={i} className="flex items-start gap-2">
@@ -509,61 +512,73 @@ export default function ResumeOptimizer() {
                 </li>
               );
             }
-            
-            // Handle priority improvement objects
-            if (typeof item === 'object' && item !== null && 'priority' in item) {
-              const improvement = item as PriorityImprovement;
+
+            // If item is a PriorityImprovement object
+            if (item && typeof item === 'object' && 'priority' in item && 'change' in item && 'reason' in item) {
               return (
-                <li key={i} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                <li key={i} className="flex items-start gap-3 p-3 bg-[#2a2a2a] rounded-lg">
                   <Badge 
                     variant={
-                      improvement.priority === 'high' ? 'destructive' : 
-                      improvement.priority === 'medium' ? 'default' : 
+                      item.priority === 'high' ? 'destructive' : 
+                      item.priority === 'medium' ? 'default' : 
                       'secondary'
                     }
-                    className="flex-shrink-0"
                   >
-                    {improvement.priority}
+                    {item.priority}
                   </Badge>
                   <div>
-                    <p className="font-medium text-gray-900">{improvement.change}</p>
-                    <p className="text-sm text-gray-600 mt-1">{improvement.reason}</p>
+                    <p className="font-medium text-white">{item.change}</p>
+                    <p className="text-sm text-gray-400 mt-1">{item.reason}</p>
                   </div>
                 </li>
               );
             }
+
+            // Skip any other types
             return null;
           })}
         </ul>
       );
     }
-  
-    // Handle object content (skills, experiences, etc.)
-    if (typeof section.content === 'object' && section.content !== null) {
+
+    // Handle object content
+    if (section.content && typeof section.content === 'object') {
+      const entries = Object.entries(section.content);
+      if (entries.length === 0) return null;
+
       return (
         <div className="space-y-4">
-          {Object.entries(section.content).map(([key, values]) => (
-            <div key={key} className="space-y-2">
-              <h4 className="font-semibold text-white capitalize">
-                {key.replace(/_/g, ' ')}
-              </h4>
-              {Array.isArray(values) && (
+          {entries.map(([key, value]) => {
+            // Skip if value is not an array or is empty
+            if (!Array.isArray(value) || value.length === 0) return null;
+
+            // Ensure all items in the array are strings
+            const stringValues = value.filter((item): item is string => typeof item === 'string');
+
+            if (stringValues.length === 0) return null;
+
+            return (
+              <div key={key} className="space-y-2">
+                <h4 className="font-semibold text-white capitalize">
+                  {key.replace(/_/g, ' ')}
+                </h4>
                 <ul className="space-y-2">
-                  {values.map((value, i) => (
+                  {stringValues.map((item, i) => (
                     <li key={i} className="flex items-start gap-2">
                       <CheckCircle className="h-4 w-4 text-green-500 mt-1 flex-shrink-0" />
-                      <span className="text-gray-300">{value}</span>
+                      <span className="text-gray-300">{item}</span>
                     </li>
                   ))}
                 </ul>
-              )}
-            </div>
-          ))}
+              </div>
+            );
+          })}
         </div>
       );
     }
-  
-    return null;
+
+    // If content is undefined or null
+    return <p className="text-gray-400">No content available</p>;
   };
 
   const MetricsCard = ({ title, value, description, icon: Icon, threshold = 70 }) => (
@@ -668,54 +683,93 @@ export default function ResumeOptimizer() {
 
   return (
     <>
-        <div className={`bg-black text-white ${poppins.className}`}>
+        <div className={`bg-black text-white`}>
     <div className="absolute top-0 left-0 w-full h-full bg-[url('/noise.png')] opacity-5 pointer-events-none"></div>
     <div className="relative z-10">
       {/* Add navbar here */}
-      <nav className="border-b border-gray-800 py-4">
+      <nav className="border-b bg-black border-gray-800 py-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center">
             <Link href="/" className="flex items-center space-x-2">
-              <Sparkles className="w-8 h-8 text-green-400" />
-              <span className={"text-2xl font-bold text-}"}>
+              <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-green-400" />
+              <span className={`text-xl sm:text-3xl font-semibold text-white ${fredoka.className}`}>
                 Dynamic<span className="text-green-400">Draft</span>
-              </span>
+                  </span>
             </Link>
-            <div className="flex items-center space-x-6">
-              <Link href="/dashboard" className="text-gray-300 hover:text-white">Dashboard</Link>
-              <Link href="/choose-template" className="text-gray-300 hover:text-white">Templates</Link>
-              <Link href="/IntrviewPrep" className="text-gray-300 hover:text-white">Interview Prep</Link>
+
+            {/* Mobile menu button */}
+            <button 
+              className="md:hidden p-2 text-gray-400 hover:text-white"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            >
+              <Menu className="h-6 w-6" />
+            </button>
+
+            {/* Desktop navigation */}
+            <div className="hidden md:flex items-center space-x-6">
+              <Link href="/dashboard" className="text-gray-300 hover:text-white">
+                Dashboard
+              </Link>
+              <Link href="/choose-template" className="text-gray-300 hover:text-white">
+                Templates
+              </Link>
+              <Link href="/intmock" className="text-gray-300 hover:text-white">
+                Mock Interview
+              </Link>
+              <button className="bg-gradient-to-r from-green-400 to-blue-500 text-black px-4 py-2 rounded-full text-sm font-medium hover:from-green-500 hover:to-blue-600 transition-all duration-300">
+                Upgrade
+              </button>
             </div>
           </div>
+
+          {/* Mobile menu */}
+          <AnimatePresence>
+            {isMobileMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="md:hidden mt-4 space-y-4"
+              >
+                <Link href="/dashboard" className="block text-gray-300 hover:text-white py-2">
+                  Dashboard
+                </Link>
+                <Link href="/choose-template" className="block text-gray-300 hover:text-white py-2">
+                  Templates
+                </Link>
+                <Link href="/intmock" className="block text-gray-300 hover:text-white py-2">
+                  Mock Interview
+                </Link>
+                <button className="w-full bg-gradient-to-r from-green-400 to-blue-500 text-black px-4 py-2 rounded-full text-sm font-medium hover:from-green-500 hover:to-blue-600 transition-all duration-300">
+                  Upgrade
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </nav>
       </div>
       </div>
 
-    <div className="container mx-auto p-4 space-y-6 bg-[#1a1a1a]">
-      <div className="flex justify-between items-center">
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-6 bg-[#1a1a1a]">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
         <div>
-          <h1 className="text-3xl font-bold text-white">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">
             AI Resume Optimizer
           </h1>
           <p className="text-gray-400">Optimize your resume for ATS and hiring managers</p>
         </div>
         <div className="flex items-center gap-4">
           <UserGuidanceButton />
-          {/* Add any other header actions here */}
         </div>
       </div>
 
       
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="input">Input</TabsTrigger>
-    
-        </TabsList>
+      
 
        
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card className="bg-[#2a2a2a] border-gray-800">
               <CardHeader>
                 <CardTitle className="text-white">Resume Text</CardTitle>
@@ -753,11 +807,11 @@ export default function ResumeOptimizer() {
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <Button 
               onClick={analyzeResume} 
               disabled={isAnalyzing}
-              className="w-full md:w-auto mt-4"
+              className="w-full sm:w-auto mt-4"
               variant="secondary"
             >
               {isAnalyzing ? (
@@ -774,11 +828,11 @@ export default function ResumeOptimizer() {
             </Button>
           </div>
         
-      </Tabs>
+
 
       {analysis && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <MetricsCard 
               title="Overall Match"
               value={metrics.overall_match}
@@ -816,7 +870,7 @@ export default function ResumeOptimizer() {
           )}
 
           {/* Detailed Analysis Sections */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {analysis.filter(section => section.title !== "Priority Improvements").map((section, index) => (
               <Card key={index} className="bg-[#2a2a2a] border-gray-800">
                 <CardHeader>
@@ -831,9 +885,9 @@ export default function ResumeOptimizer() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="text-gray-300">
-                  {renderAnalysisContent(section)}
+                  {section.content ? renderAnalysisContent(section) : null}
                 </CardContent>
-                {section.confidence && (
+                {typeof section.confidence === 'number' && (
                   <CardFooter>
                     <div className="w-full">
                       <div className="flex justify-between text-sm mb-1 text-gray-400">
@@ -863,7 +917,7 @@ export default function ResumeOptimizer() {
     </div>
   </CardHeader>
   <CardContent>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {Object.entries(customSuggestions).map(([key, suggestions]) => (
         <div key={key} className="space-y-2">
           <h4 className="font-semibold text-white capitalize">{key.replace('_', ' ')}</h4>
